@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ES2016",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "lib": ["ES2016"],
+    "declaration": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test",
+    "**/*.test.ts",
+    "src/adapters/jest.ts",
+    "src/mocks/setup.ts",
+    "src/mocks/quota-mocks.ts",
+    "src/polyfills/polyfill-error-boundaries.ts",
+    "src/polyfills/polyfill-initialization.ts",
+    "src/polyfills/polyfill-test-helper.ts",
+    "src/polyfills/polyfill-types.ts",
+    "src/polyfills/core-polyfills.ts"
+  ]
+}

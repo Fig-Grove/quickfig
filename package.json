@@ -1,0 +1,116 @@
+{
+  "name": "@fig-grove/quickfig",
+  "version": "1.0.0",
+  "description": "Comprehensive testing framework for Figma plugins in QuickJS environment",
+  "keywords": [
+    "figma",
+    "plugin",
+    "testing",
+    "quickjs",
+    "constraints",
+    "validation",
+    "performance",
+    "polyfills"
+  ],
+  "author": "Fig Grove Team",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "quickfig": "./dist/cli.cjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.mjs"
+    },
+    "./adapters/ava": {
+      "types": "./dist/adapters/ava.d.ts",
+      "require": "./dist/adapters/ava.cjs",
+      "import": "./dist/adapters/ava.mjs"
+    },
+    "./adapters/jest": {
+      "types": "./dist/adapters/jest.d.ts",
+      "require": "./dist/adapters/jest.cjs",
+      "import": "./dist/adapters/jest.mjs"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "require": "./dist/cli.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "examples"
+  ],
+  "scripts": {
+    "build": "npm run build:types && npm run build:cjs && npm run build:mjs && npm run build:cli",
+    "build:types": "tsc --emitDeclarationOnly --outDir dist",
+    "build:cjs": "esbuild src/index.ts --bundle --outfile=dist/index.cjs --format=cjs --target=es2016 --platform=node --minify --external:@sebastianwessel/quickjs",
+    "build:mjs": "esbuild src/index.ts --bundle --outfile=dist/index.mjs --format=esm --target=es2016 --platform=node --minify --external:@sebastianwessel/quickjs",
+    "build:cli": "esbuild src/cli/index.ts --bundle --outfile=dist/cli.cjs --format=cjs --target=node16 --platform=node --minify",
+    "build:adapters": "esbuild src/adapters/ava.ts --bundle --outfile=dist/adapters/ava.cjs --format=cjs --target=es2016 && esbuild src/adapters/jest.ts --bundle --outfile=dist/adapters/jest.cjs --format=cjs --target=es2016",
+    "dev": "tsc --watch",
+    "test": "ava",
+    "test:watch": "ava --watch",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write 'src/**/*.ts'",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build && npm run test"
+  },
+  "dependencies": {
+    "@sebastianwessel/quickjs": "^2.3.1",
+    "@jitl/quickjs-ng-wasmfile-release-sync": "^0.31.0"
+  },
+  "peerDependencies": {
+    "ava": "^6.4.1",
+    "jest": "^30.0.4"
+  },
+  "peerDependenciesMeta": {
+    "ava": {
+      "optional": true
+    },
+    "jest": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.14",
+    "@typescript-eslint/eslint-plugin": "^8.37.0",
+    "@typescript-eslint/parser": "^8.37.0",
+    "ava": "^6.4.1",
+    "esbuild": "^0.25.6",
+    "eslint": "^9.31.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.8.3",
+    "esbuild-register": "^3.6.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fig-grove/quickfig.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fig-grove/quickfig/issues"
+  },
+  "homepage": "https://github.com/fig-grove/quickfig#readme",
+  "ava": {
+    "files": [
+      "test/**/*.test.ts",
+      "examples/constraint-validation-*.test.ts",
+      "!examples/migration-examples/**/*"
+    ],
+    "extensions": [
+      "ts"
+    ],
+    "require": [
+      "esbuild-register"
+    ],
+    "verbose": true,
+    "timeout": "2m"
+  }
+}

@@ -1,0 +1,50 @@
+# Source files - only ship built dist/
+src/
+test/
+tests/
+
+# Development files
+*.test.*
+*.spec.*
+tsconfig.json
+.gitignore
+
+# Build configuration
+.github/
+.vscode/
+.idea/
+
+# Documentation source (keep README.md)
+docs/
+
+# Development dependencies
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+._*
+
+# Logs
+*.log
+npm-debug.log*
+
+# Cache
+.cache/
+.nyc_output/
+coverage/
+
+# Environment
+.env*
+
+# Temporary files
+*.tmp
+*.temp
+
+# IDE files
+*.swp
+*.swo
+*~
+
+# Git
+.git/
