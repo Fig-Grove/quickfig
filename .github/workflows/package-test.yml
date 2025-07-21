@@ -1,0 +1,223 @@
+name: Package Validation
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches: [main]
+  schedule:
+    # Run daily at 6 AM UTC to catch issues early
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  # Only run if CI workflow succeeded or on schedule/manual trigger
+  package-integrity:
+    name: Package Integrity Test
+    runs-on: ${{ matrix.os }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node-version: [16, 18, 20]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build package
+        run: npm run build
+
+      - name: Pack package
+        run: npm pack
+
+      - name: Test package installation (Fresh Environment)
+        shell: bash
+        run: |
+          # Create a temporary test directory
+          TEMP_DIR=$(mktemp -d)
+          cd "$TEMP_DIR"
+          
+          # Initialize a new npm project
+          npm init -y
+          
+          # Install the packed package
+          PACKAGE_PATH="${GITHUB_WORKSPACE}/fig-grove-quickfig-1.0.0.tgz"
+          npm install "$PACKAGE_PATH"
+          
+          # Test basic import/require functionality
+          echo "Testing CommonJS require..."
+          node -e "
+            const quickfig = require('@fig-grove/quickfig');
+            console.log('✅ CommonJS import successful');
+            console.log('Available exports:', Object.keys(quickfig));
+          "
+          
+          # Test ES module import (if supported)
+          if [ "${{ matrix.node-version }}" != "16" ]; then
+            echo "Testing ES module import..."
+            node --input-type=module -e "
+              import * as quickfig from '@fig-grove/quickfig';
+              console.log('✅ ES module import successful');
+              console.log('Available exports:', Object.keys(quickfig));
+            "
+          fi
+
+      - name: Test CLI functionality
+        shell: bash
+        run: |
+          # Test CLI installation and basic commands
+          TEMP_DIR=$(mktemp -d)
+          cd "$TEMP_DIR"
+          
+          npm init -y
+          PACKAGE_PATH="${GITHUB_WORKSPACE}/fig-grove-quickfig-1.0.0.tgz"
+          npm install "$PACKAGE_PATH"
+          
+          # Test CLI help command
+          echo "Testing CLI help command..."
+          npx quickfig --help
+          
+          # Test CLI version (should not crash)
+          echo "Testing CLI command parsing..."
+          npx quickfig help || echo "CLI help command completed"
+
+      - name: Test Adapter Exports
+        shell: bash
+        run: |
+          TEMP_DIR=$(mktemp -d)
+          cd "$TEMP_DIR"
+          
+          npm init -y
+          PACKAGE_PATH="${GITHUB_WORKSPACE}/fig-grove-quickfig-1.0.0.tgz"
+          npm install "$PACKAGE_PATH"
+          
+          # Test AVA adapter export
+          echo "Testing AVA adapter import..."
+          node -e "
+            try {
+              const { avaAdapter } = require('@fig-grove/quickfig/adapters/ava');
+              console.log('✅ AVA adapter import successful');
+              console.log('AVA adapter type:', typeof avaAdapter);
+            } catch (error) {
+              console.log('❌ AVA adapter import failed:', error.message);
+              process.exit(1);
+            }
+          "
+          
+          # Test Jest adapter export
+          echo "Testing Jest adapter import..."
+          node -e "
+            try {
+              const jest = require('@fig-grove/quickfig/adapters/jest');
+              console.log('✅ Jest adapter import successful');
+              console.log('Jest adapter exports:', Object.keys(jest));
+            } catch (error) {
+              console.log('❌ Jest adapter import failed:', error.message);
+              process.exit(1);
+            }
+          "
+
+  real-world-usage:
+    name: Real-world Usage Simulation
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Build and pack package
+        run: |
+          npm ci
+          npm run build
+          npm pack
+
+      - name: Simulate real-world plugin testing
+        run: |
+          # Create a mock Figma plugin project
+          mkdir figma-plugin-test && cd figma-plugin-test
+          npm init -y
+          
+          # Install our package and testing dependencies
+          npm install ../fig-grove-quickfig-1.0.0.tgz
+          npm install ava@^6.4.1
+          
+          # Create a simple plugin test file
+          cat > plugin.test.js << 'EOF'
+          const test = require('ava');
+          const { validateFigmaPluginConstraints, createQuickJSTestHarness } = require('@fig-grove/quickfig');
+          
+          test('basic constraint validation', async t => {
+            const result = await validateFigmaPluginConstraints(`
+              const message = 'Hello Figma!';
+              figma.notify(message);
+            `);
+            
+            t.true(result.memoryCompliant, 'Should be memory compliant');
+            t.true(result.uiBlockingCompliant, 'Should be UI blocking compliant');
+            t.is(result.violations.length, 0, 'Should have no violations');
+          });
+          
+          test('test harness creation', async t => {
+            const harness = await createQuickJSTestHarness();
+            t.truthy(harness, 'Harness should be created');
+          });
+          EOF
+          
+          # Run the tests
+          echo "Running real-world plugin tests..."
+          npx ava plugin.test.js --timeout=30s
+
+  performance-benchmark:
+    name: Performance Benchmark
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Run performance benchmarks
+        run: |
+          echo "Running framework overhead benchmark..."
+          npm test -- test/performance/framework-overhead.test.ts
+          
+          echo "Running constraint detection benchmark..."
+          npm test -- src/benchmarks/constraint-detection-overhead.test.ts
+
+      - name: Package size analysis
+        run: |
+          npm pack
+          echo "Package size analysis:"
+          ls -lh fig-grove-quickfig-1.0.0.tgz
+          
+          # Extract and analyze contents
+          tar -tzf fig-grove-quickfig-1.0.0.tgz | head -20
+          
+          echo "Build artifact sizes:"
+          ls -lh dist/

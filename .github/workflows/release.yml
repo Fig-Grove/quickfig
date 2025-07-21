@@ -1,0 +1,144 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  validate:
+    name: Pre-release Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run quality checks
+        run: npm run quality
+
+      - name: Run full test suite
+        run: npm test
+
+      - name: Build all targets
+        run: npm run build
+
+      - name: Validate package.json version
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
+            echo "Package version ($PACKAGE_VERSION) does not match tag ($TAG_VERSION)"
+            exit 1
+          fi
+
+  publish:
+    name: Publish to NPM
+    runs-on: ubuntu-latest
+    needs: validate
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for production
+        run: npm run build
+
+      - name: Publish to NPM
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            ## Changes in this Release
+            
+            🎉 **QuickFig ${{ github.ref }} has been published to NPM!**
+            
+            ### Installation
+            ```bash
+            npm install @fig-grove/quickfig
+            ```
+            
+            ### What's New
+            - See [CHANGELOG.md](https://github.com/fig-grove/quickfig/blob/main/CHANGELOG.md) for detailed changes
+            
+            ### Documentation
+            - [README](https://github.com/fig-grove/quickfig#readme)
+            - [NPM Package](https://www.npmjs.com/package/@fig-grove/quickfig)
+            
+            ---
+            
+            🤖 Generated with [Claude Code](https://claude.ai/code)
+          draft: false
+          prerelease: false
+
+  post-release:
+    name: Post-release Tasks
+    runs-on: ubuntu-latest
+    needs: publish
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Verify NPM publication
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          echo "Waiting for NPM registry to update..."
+          sleep 30
+          
+          # Verify the package is available on NPM
+          npm view @fig-grove/quickfig@$PACKAGE_VERSION version
+          if [ $? -eq 0 ]; then
+            echo "✅ Package successfully published to NPM"
+          else
+            echo "❌ Package not found on NPM registry"
+            exit 1
+          fi
+
+      - name: Test installation from NPM
+        run: |
+          cd ..
+          mkdir npm-install-test && cd npm-install-test
+          npm init -y
+          npm install @fig-grove/quickfig
+          node -e "
+            const qf = require('@fig-grove/quickfig');
+            console.log('✅ NPM package installation successful');
+            console.log('Package version:', require('@fig-grove/quickfig/package.json').version);
+          "
+
+      - name: Notify success
+        run: |
+          echo "🎉 Release ${{ github.ref }} completed successfully!"
+          echo "📦 Available at: https://www.npmjs.com/package/@fig-grove/quickfig"

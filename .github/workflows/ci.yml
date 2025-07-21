@@ -1,0 +1,131 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Check Prettier formatting
+        run: npm run format:check
+
+      - name: TypeScript compilation check
+        run: npm run build:types
+
+  test:
+    name: Test Suite
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [16, 18, 20]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+        timeout-minutes: 5
+
+      - name: Test CLI functionality
+        run: |
+          npm run build:cli
+          node dist/cli.cjs --help
+
+  build:
+    name: Build Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build all targets
+        run: npm run build
+
+      - name: Verify build outputs
+        run: |
+          test -f dist/index.cjs
+          test -f dist/index.mjs
+          test -f dist/index.d.ts
+          test -f dist/cli.cjs
+
+      - name: Test package installation
+        run: |
+          cd ..
+          mkdir test-install && cd test-install
+          npm init -y
+          npm install ../quickfig/fig-grove-quickfig-1.0.0.tgz
+          node -e "const qf = require('@fig-grove/quickfig'); console.log('Package installed successfully')"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist/
+          retention-days: 7
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [quality, build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run constraint validation tests
+        run: npm test -- test/constraints/
+
+      - name: Run QuickJS simulation tests
+        run: npm test -- test/environment/
+
+      - name: Run performance tests
+        run: npm test -- test/performance/

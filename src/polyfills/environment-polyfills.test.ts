@@ -5,11 +5,11 @@
  * in QuickJS environments like Figma plugins.
  */
 
-import test from 'ava';
-import { createFigmaTestEnvironment } from '../mocks/mock-quickjs-harness.js';
+import test from "ava";
+import { createFigmaTestEnvironment } from "../mocks/mock-quickjs-harness.ts";
 // Note: resetPolyfillsForTesting may not exist - removing for now
 
-test('performance.now() polyfill should provide timing functionality', async (t) => {
+test("performance.now() polyfill should provide timing functionality", async (t) => {
   const testEnv = await createFigmaTestEnvironment();
   const result = await testEnv.runSandboxed(`
     // Clear any existing performance object to test polyfill
@@ -47,12 +47,12 @@ test('performance.now() polyfill should provide timing functionality', async (t)
   t.true(result.data.hasPerformance);
   t.true(result.data.hasNowMethod);
   t.true(result.data.timingWorks);
-  t.is(typeof result.data.startTime, 'number');
-  t.is(typeof result.data.endTime, 'number');
+  t.is(typeof result.data.startTime, "number");
+  t.is(typeof result.data.endTime, "number");
   t.is(result.data.sum, 499500); // Verify loop actually ran
 });
 
-test('TextEncoder polyfill should encode UTF-8 strings correctly', async (t) => {
+test("TextEncoder polyfill should encode UTF-8 strings correctly", async (t) => {
   const testEnv = await createFigmaTestEnvironment();
   const result = await testEnv.runSandboxed(`
     // Clear any existing TextEncoder to test polyfill
@@ -155,7 +155,234 @@ test('TextEncoder polyfill should encode UTF-8 strings correctly', async (t) => 
   t.deepEqual(result.data.empty, []);
 });
 
-test('Buffer.byteLength() polyfill should calculate UTF-8 byte lengths correctly', async (t) => {
+test("TextDecoder polyfill should decode UTF-8 bytes correctly", async (t) => {
+  const testEnv = await createFigmaTestEnvironment();
+  const result = await testEnv.runSandboxed(`
+    // Clear any existing TextDecoder to test polyfill
+    if (typeof TextDecoder !== 'undefined') {
+      delete globalThis.TextDecoder;
+    }
+    
+    // This will fail without implementation
+    const decoder = new TextDecoder();
+    
+    // Test basic ASCII decoding
+    const asciiBytes = new Uint8Array([104, 101, 108, 108, 111]); // 'hello'
+    const asciiResult = decoder.decode(asciiBytes);
+    
+    // Test 2-byte UTF-8 (ä = C3 A4)
+    const twoByte = new Uint8Array([195, 164]);
+    const twoByteResult = decoder.decode(twoByte);
+    
+    // Test 3-byte UTF-8 (★ = E2 98 85)
+    const threeByte = new Uint8Array([226, 152, 133]);
+    const threeByteResult = decoder.decode(threeByte);
+    
+    // Test 4-byte UTF-8 (🚀 = F0 9F 9A 80)
+    const fourByte = new Uint8Array([240, 159, 154, 128]);
+    const fourByteResult = decoder.decode(fourByte);
+    
+    // Test mixed content
+    const mixed = new Uint8Array([104, 101, 108, 108, 111, 32, 240, 159, 140, 141, 32, 119, 111, 114, 108, 100]);
+    const mixedResult = decoder.decode(mixed); // 'hello 🌍 world'
+    
+    // Test empty array
+    const empty = new Uint8Array([]);
+    const emptyResult = decoder.decode(empty);
+    
+    // Test invalid sequences
+    const incomplete = new Uint8Array([195]); // Incomplete 2-byte sequence
+    const incompleteResult = decoder.decode(incomplete);
+    
+    const invalidContinuation = new Uint8Array([195, 32]); // Invalid continuation byte
+    const invalidResult = decoder.decode(invalidContinuation);
+    
+    const overlong = new Uint8Array([192, 129]); // Overlong encoding of U+0001
+    const overlongResult = decoder.decode(overlong);
+    
+    // Test null/undefined handling
+    let nullResult;
+    let undefinedResult;
+    try {
+      nullResult = decoder.decode(null);
+    } catch (e) {
+      nullResult = 'error: ' + e.message;
+    }
+    
+    try {
+      undefinedResult = decoder.decode(undefined);
+    } catch (e) {
+      undefinedResult = 'error: ' + e.message;
+    }
+    
+    return {
+      hasTextDecoder: typeof TextDecoder !== 'undefined',
+      canInstantiate: decoder instanceof TextDecoder,
+      hasDecodeMethod: typeof decoder.decode === 'function',
+      
+      // Basic tests
+      ascii: asciiResult,
+      twoByte: twoByteResult,
+      threeByte: threeByteResult,
+      fourByte: fourByteResult,
+      mixed: mixedResult,
+      empty: emptyResult,
+      
+      // Invalid sequence tests
+      incomplete: incompleteResult,
+      invalidContinuation: invalidResult,
+      overlong: overlongResult,
+      
+      // Edge cases
+      nullHandling: nullResult,
+      undefinedHandling: undefinedResult
+    };
+  `);
+
+  t.true(result.ok);
+  t.true(result.data.hasTextDecoder);
+  t.true(result.data.canInstantiate);
+  t.true(result.data.hasDecodeMethod);
+
+  // Test basic decoding
+  t.is(result.data.ascii, 'hello');
+  t.is(result.data.twoByte, 'ä');
+  t.is(result.data.threeByte, '★');
+  t.is(result.data.fourByte, '🚀');
+  t.is(result.data.mixed, 'hello 🌍 world');
+  t.is(result.data.empty, '');
+
+  // Test invalid sequences (should produce replacement character �)
+  t.true(result.data.incomplete.includes('�') || result.data.incomplete === '\uFFFD');
+  t.true(result.data.invalidContinuation.includes('�') || result.data.invalidContinuation.includes('\uFFFD'));
+  t.true(result.data.overlong.includes('�') || result.data.overlong.includes('\uFFFD'));
+
+  // Test null/undefined handling
+  t.true(result.data.nullHandling.startsWith('error:') || result.data.nullHandling === '');
+  t.true(result.data.undefinedHandling.startsWith('error:') || result.data.undefinedHandling === '');
+});
+
+test("TextDecoder polyfill should support constructor options", async (t) => {
+  const testEnv = await createFigmaTestEnvironment();
+  const result = await testEnv.runSandboxed(`
+    // Clear any existing TextDecoder to test polyfill
+    if (typeof TextDecoder !== 'undefined') {
+      delete globalThis.TextDecoder;
+    }
+    
+    // Test constructor with encoding parameter
+    const utf8Decoder = new TextDecoder('utf-8');
+    const defaultDecoder = new TextDecoder();
+    
+    // Test constructor with options
+    const fatalDecoder = new TextDecoder('utf-8', { fatal: true });
+    const ignoreBOMDecoder = new TextDecoder('utf-8', { ignoreBOM: false });
+    
+    // Test encoding property
+    const encodingProp = utf8Decoder.encoding;
+    const fatalProp = fatalDecoder.fatal;
+    const ignoreBOMProp = ignoreBOMDecoder.ignoreBOM;
+    
+    // Test fatal mode with invalid sequence
+    const invalidSequence = new Uint8Array([255, 254, 253]);
+    let fatalError;
+    try {
+      fatalDecoder.decode(invalidSequence);
+    } catch (e) {
+      fatalError = e.message;
+    }
+    
+    // Test BOM handling
+    const withBOM = new Uint8Array([239, 187, 191, 104, 105]); // BOM + 'hi'
+    const bomResult = defaultDecoder.decode(withBOM);
+    const ignoreBOMResult = ignoreBOMDecoder.decode(withBOM);
+    
+    return {
+      // Constructor tests
+      hasConstructor: typeof TextDecoder === 'function',
+      canCreateWithEncoding: utf8Decoder instanceof TextDecoder,
+      canCreateWithOptions: fatalDecoder instanceof TextDecoder,
+      
+      // Property tests
+      encoding: encodingProp,
+      fatal: fatalProp,
+      ignoreBOM: ignoreBOMProp,
+      
+      // Behavior tests
+      fatalError: fatalError || 'no error',
+      bomHandling: bomResult,
+      ignoreBOMHandling: ignoreBOMResult
+    };
+  `);
+
+  t.true(result.ok);
+  t.true(result.data.hasConstructor);
+  t.true(result.data.canCreateWithEncoding);
+  t.true(result.data.canCreateWithOptions);
+
+  // Test properties
+  t.is(result.data.encoding, 'utf-8');
+  t.is(result.data.fatal, true);
+  t.is(result.data.ignoreBOM, false);
+
+  // Test fatal mode behavior
+  t.not(result.data.fatalError, 'no error');
+
+  // Test BOM handling (depending on implementation, BOM might be stripped or kept)
+  t.true(result.data.bomHandling === 'hi' || result.data.bomHandling === '\uFEFFhi');
+});
+
+test("TextDecoder polyfill should handle streaming decode", async (t) => {
+  const testEnv = await createFigmaTestEnvironment();
+  const result = await testEnv.runSandboxed(`
+    // Clear any existing TextDecoder to test polyfill
+    if (typeof TextDecoder !== 'undefined') {
+      delete globalThis.TextDecoder;
+    }
+    
+    const decoder = new TextDecoder();
+    
+    // Test streaming decode with multi-byte character split across chunks
+    // "hello 🌍" where 🌍 (F0 9F 8C 8D) is split
+    const chunk1 = new Uint8Array([104, 101, 108, 108, 111, 32, 240, 159]); // 'hello ' + first 2 bytes of 🌍
+    const chunk2 = new Uint8Array([140, 141]); // last 2 bytes of 🌍
+    
+    // Decode with stream option
+    const part1 = decoder.decode(chunk1, { stream: true });
+    const part2 = decoder.decode(chunk2, { stream: false });
+    const combined = part1 + part2;
+    
+    // Test incomplete sequence at end with stream: true (should not produce replacement char)
+    const incompleteStream = new Uint8Array([195]); // Incomplete 2-byte
+    const streamResult = decoder.decode(incompleteStream, { stream: true });
+    
+    // Test incomplete sequence with stream: false (should produce replacement char)
+    const incompleteFinal = new Uint8Array([195]); // Incomplete 2-byte
+    const finalResult = decoder.decode(incompleteFinal, { stream: false });
+    
+    return {
+      combined: combined,
+      part1: part1,
+      part2: part2,
+      streamIncomplete: streamResult,
+      finalIncomplete: finalResult,
+      hasReplacementInFinal: finalResult.includes('�') || finalResult.includes('\uFFFD')
+    };
+  `);
+
+  t.true(result.ok);
+  
+  // Test streaming decode
+  t.is(result.data.combined, 'hello 🌍');
+  t.is(result.data.part1, 'hello '); // Should not include incomplete character
+  t.is(result.data.part2, '🌍');
+  
+  // Test stream mode behavior
+  t.is(result.data.streamIncomplete, ''); // Should buffer incomplete sequence
+  t.true(result.data.hasReplacementInFinal); // Should have replacement character
+});
+
+test("Buffer.byteLength() polyfill should calculate UTF-8 byte lengths correctly", async (t) => {
   const testEnv = await createFigmaTestEnvironment();
   const result = await testEnv.runSandboxed(`
     // Clear any existing Buffer to test polyfill
@@ -281,33 +508,43 @@ test('Buffer.byteLength() polyfill should calculate UTF-8 byte lengths correctly
   t.true(result.data.encodingMatches); // utf8 and default should match
 });
 
-test('polyfills should not override native implementations', async (t) => {
+test("polyfills should not override native implementations", async (t) => {
   // Aggressively detect and clean contaminated polyfills before starting
   const cleanContaminatedTextEncoder = () => {
     const currentEncoder = (globalThis as any).TextEncoder;
     if (currentEncoder) {
       try {
         // Test if this is the contaminated encoder that returns "custom" bytes
-        const testResult = new currentEncoder().encode('');
+        const testResult = new currentEncoder().encode("");
         if (testResult instanceof Uint8Array && testResult.length === 6) {
           // This is the contaminated encoder - remove it
           delete (globalThis as any).TextEncoder;
-          console.log('🧹 Cleaned contaminated TextEncoder before native test (src)');
+          console.log(
+            "🧹 Cleaned contaminated TextEncoder before native test (src)",
+          );
         }
       } catch (e) {
         // If it errors, it's probably contaminated - remove it
         delete (globalThis as any).TextEncoder;
-        console.log('🧹 Cleaned faulty TextEncoder before native test (src)');
+        console.log("🧹 Cleaned faulty TextEncoder before native test (src)");
       }
     }
   };
-  
+
   // Clean all polyfillable globals to ensure clean state for this test
-  const polyfillsToClean = ['performance', 'TextEncoder', 'TextDecoder', 'Buffer', 'Blob', 'URL', 'Worker'];
-  polyfillsToClean.forEach(globalName => {
+  const polyfillsToClean = [
+    "performance",
+    "TextEncoder",
+    "TextDecoder",
+    "Buffer",
+    "Blob",
+    "URL",
+    "Worker",
+  ];
+  polyfillsToClean.forEach((globalName) => {
     delete (globalThis as any)[globalName];
   });
-  
+
   // Extra step: specifically detect and clean contaminated TextEncoder
   cleanContaminatedTextEncoder();
 
@@ -347,27 +584,45 @@ test('polyfills should not override native implementations', async (t) => {
   t.is(result.data.performanceResult, 42); // Native implementation preserved
   t.deepEqual(result.data.encodedResult, [99, 117, 115, 116, 111, 109]); // Native result
   t.is(result.data.byteLengthResult, 999); // Native implementation preserved
-  
+
   // Clean up after this test to prevent contamination of subsequent tests
-  const polyfillsToCleanup = ['performance', 'TextEncoder', 'TextDecoder', 'Buffer', 'Blob', 'URL', 'Worker'];
-  polyfillsToCleanup.forEach(globalName => {
+  const polyfillsToCleanup = [
+    "performance",
+    "TextEncoder",
+    "TextDecoder",
+    "Buffer",
+    "Blob",
+    "URL",
+    "Worker",
+  ];
+  polyfillsToCleanup.forEach((globalName) => {
     delete (globalThis as any)[globalName];
   });
 });
 
-test('QuickFig library should work with polyfills in QuickJS environment', async (t) => {
+test("QuickFig library should work with polyfills in QuickJS environment", async (t) => {
   // Note: Polyfill reset function removed - tests run in isolated environments
-  
+
   // Aggressively clear ALL polyfillable globals to ensure clean state
   // This test requires absolutely clean state to avoid contamination from mocks
-  const polyfillsToClean = ['performance', 'TextEncoder', 'TextDecoder', 'Buffer', 'Blob', 'URL', 'Worker'];
-  polyfillsToClean.forEach(globalName => {
+  const polyfillsToClean = [
+    "performance",
+    "TextEncoder",
+    "TextDecoder",
+    "Buffer",
+    "Blob",
+    "URL",
+    "Worker",
+  ];
+  polyfillsToClean.forEach((globalName) => {
     delete (globalThis as any)[globalName];
   });
-  
+
   // Import our production polyfills to ensure consistency
-  const { applyEnvironmentPolyfills } = await import('../../../src/utils/environment-polyfills.ts');
-  
+  const { applyEnvironmentPolyfills } = await import(
+    "../../../src/utils/environment-polyfills.ts"
+  );
+
   const testEnv = await createFigmaTestEnvironment();
   const result = await testEnv.runSandboxed(`
     // Apply production polyfills inside the sandboxed environment
@@ -490,25 +745,25 @@ test('QuickFig library should work with polyfills in QuickJS environment', async
     };
   `);
 
-  console.log('Debug - QuickFig polyfill integration result:', {
+  console.log("Debug - QuickFig polyfill integration result:", {
     ok: result.ok,
     error: result.error,
     dataExists: !!result.data,
-    data: result.data
+    data: result.data,
   });
 
   if (!result.ok || !result.data) {
-    console.error('QuickFig polyfill test execution failed:', result.error);
+    console.error("QuickFig polyfill test execution failed:", result.error);
     t.fail(`Test execution failed: ${result.error}`);
     return;
   }
 
-  console.log('Debug - QuickFig polyfill integration data:', {
+  console.log("Debug - QuickFig polyfill integration data:", {
     calculatedSize: result.data.calculatedSize,
     encodedLength: result.data.encodedLength,
     sizesMatch: result.data.sizesMatch,
     testData: result.data.testData,
-    encodedBytes: result.data.encodedBytes
+    encodedBytes: result.data.encodedBytes,
   });
 
   t.true(result.ok);
@@ -519,17 +774,25 @@ test('QuickFig library should work with polyfills in QuickJS environment', async
   t.true(result.data.sizesMatch); // Buffer.byteLength and TextEncoder should agree
   t.true(result.data.timingWorks); // Performance timing should work
   t.true(result.data.mockNodeWorks); // Mock node setup should work
-  t.is(typeof result.data.calculatedSize, 'number');
+  t.is(typeof result.data.calculatedSize, "number");
   t.true(result.data.calculatedSize > 20); // Unicode string should be > 20 bytes
 });
 
-test('polyfills should handle edge cases correctly', async (t) => {
+test("polyfills should handle edge cases correctly", async (t) => {
   // Note: Polyfill reset function removed - tests run in isolated environments
-  
+
   // Aggressively clear ALL polyfillable globals to ensure clean state
   // This test requires absolutely clean state to avoid contamination
-  const polyfillsToClean = ['performance', 'TextEncoder', 'TextDecoder', 'Buffer', 'Blob', 'URL', 'Worker'];
-  polyfillsToClean.forEach(globalName => {
+  const polyfillsToClean = [
+    "performance",
+    "TextEncoder",
+    "TextDecoder",
+    "Buffer",
+    "Blob",
+    "URL",
+    "Worker",
+  ];
+  polyfillsToClean.forEach((globalName) => {
     delete (globalThis as any)[globalName];
   });
 
@@ -664,10 +927,10 @@ test('polyfills should handle edge cases correctly', async (t) => {
   t.is(result.data.special.byteLength, 9); // \\n\\t\\r"\\\\ = 9 chars
 
   // Timing tests
-  t.is(typeof result.data.timing.immediateCall, 'number');
+  t.is(typeof result.data.timing.immediateCall, "number");
   t.is(result.data.timing.consecutiveCalls.length, 3);
   result.data.timing.consecutiveCalls.forEach((time) => {
-    t.is(typeof time, 'number');
+    t.is(typeof time, "number");
     t.true(time > 0);
   });
 });

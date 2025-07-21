@@ -1,0 +1,62 @@
+# QuickFig Code Owners
+# 
+# This file defines individuals or teams that are responsible
+# for code in this repository.
+#
+# For more information about CODEOWNERS, see:
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global owners - these users will be requested for review on all PRs
+* @fig-grove/quickfig-maintainers
+
+# Core framework code
+/src/ @fig-grove/quickfig-maintainers @fig-grove/core-team
+
+# CLI and command-line interface
+/src/cli/ @fig-grove/quickfig-maintainers @fig-grove/cli-team
+
+# Testing infrastructure and adapters
+/src/adapters/ @fig-grove/quickfig-maintainers @fig-grove/testing-team
+/test/ @fig-grove/quickfig-maintainers @fig-grove/testing-team
+
+# Build and deployment configuration
+/package.json @fig-grove/quickfig-maintainers @fig-grove/devops-team
+/tsconfig.json @fig-grove/quickfig-maintainers @fig-grove/core-team
+/eslint.config.js @fig-grove/quickfig-maintainers @fig-grove/core-team
+/.prettierrc @fig-grove/quickfig-maintainers @fig-grove/core-team
+
+# CI/CD and GitHub configuration
+/.github/ @fig-grove/quickfig-maintainers @fig-grove/devops-team
+/.github/workflows/ @fig-grove/quickfig-maintainers @fig-grove/devops-team
+/.github/dependabot.yml @fig-grove/quickfig-maintainers @fig-grove/devops-team
+
+# Documentation
+/README.md @fig-grove/quickfig-maintainers @fig-grove/docs-team
+/CHANGELOG.md @fig-grove/quickfig-maintainers @fig-grove/docs-team
+/MIGRATION_GUIDE.md @fig-grove/quickfig-maintainers @fig-grove/docs-team
+/TESTING_PATTERNS.md @fig-grove/quickfig-maintainers @fig-grove/docs-team
+/TROUBLESHOOTING.md @fig-grove/quickfig-maintainers @fig-grove/docs-team
+/docs/ @fig-grove/quickfig-maintainers @fig-grove/docs-team
+
+# Examples and usage patterns
+/examples/ @fig-grove/quickfig-maintainers @fig-grove/docs-team
+
+# Security and compliance
+/LICENSE @fig-grove/quickfig-maintainers @fig-grove/legal-team
+
+# Quality gates and constraint detection (critical path)
+/src/constraints/ @fig-grove/quickfig-maintainers @fig-grove/core-team @fig-grove/quality-team
+/src/quality-gates/ @fig-grove/quickfig-maintainers @fig-grove/core-team @fig-grove/quality-team
+
+# Performance and benchmarking
+/src/benchmarks/ @fig-grove/quickfig-maintainers @fig-grove/performance-team
+
+# QuickJS environment simulation (critical path)
+/src/harness/ @fig-grove/quickfig-maintainers @fig-grove/core-team @fig-grove/quickjs-team
+/src/mocks/ @fig-grove/quickfig-maintainers @fig-grove/core-team @fig-grove/quickjs-team
+
+# Polyfills and environment compatibility
+/src/polyfills/ @fig-grove/quickfig-maintainers @fig-grove/core-team @fig-grove/compatibility-team
+
+# Type definitions
+/src/types/ @fig-grove/quickfig-maintainers @fig-grove/core-team

@@ -1,0 +1,73 @@
+version: 2
+updates:
+  # Enable version updates for npm
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "fig-grove/quickfig-maintainers"
+    assignees:
+      - "fig-grove/quickfig-maintainers"
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automated"
+    # Group minor and patch updates together
+    groups:
+      typescript-ecosystem:
+        patterns:
+          - "typescript"
+          - "@types/*"
+          - "@typescript-eslint/*"
+        update-types:
+          - "minor"
+          - "patch"
+      build-tools:
+        patterns:
+          - "esbuild*"
+          - "prettier"
+          - "eslint*"
+        update-types:
+          - "minor"
+          - "patch"
+      testing-framework:
+        patterns:
+          - "ava"
+          - "@ava/*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Ignore specific packages that need manual updates
+    ignore:
+      # QuickJS packages - need careful manual testing
+      - dependency-name: "@sebastianwessel/quickjs"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@jitl/quickjs-ng-wasmfile-release-sync"
+        update-types: ["version-update:semver-major"]
+    # Auto-approve and merge minor updates for dev dependencies
+    auto-merge:
+      squash-and-merge: true
+      delete-branch: true
+      
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+      timezone: "UTC"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "github-actions"
+      - "automated"

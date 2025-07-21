@@ -1,0 +1,176 @@
+name: Dependencies & Security
+
+on:
+  schedule:
+    # Run weekly on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+  push:
+    paths:
+      - 'package*.json'
+      - '.github/workflows/dependencies.yml'
+
+jobs:
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level high
+
+      - name: Check for known vulnerabilities
+        run: npm audit --production --audit-level moderate
+
+  codeql-analysis:
+    name: CodeQL Security Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          allow-licenses: MIT, Apache-2.0, BSD-3-Clause, BSD-2-Clause, ISC
+
+  outdated-check:
+    name: Check Outdated Dependencies
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for outdated dependencies
+        run: |
+          echo "## Outdated Dependencies Report" > outdated-report.md
+          echo "Generated on: $(date)" >> outdated-report.md
+          echo "" >> outdated-report.md
+          
+          # Check for outdated packages
+          npm outdated --json > outdated.json || true
+          
+          if [ -s outdated.json ]; then
+            echo "### Production Dependencies" >> outdated-report.md
+            npm outdated --prod || true
+            echo "" >> outdated-report.md
+            
+            echo "### Development Dependencies" >> outdated-report.md
+            npm outdated --dev || true
+            echo "" >> outdated-report.md
+          else
+            echo "✅ All dependencies are up to date!" >> outdated-report.md
+          fi
+          
+          cat outdated-report.md
+
+      - name: Upload outdated report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: outdated-dependencies-report
+          path: outdated-report.md
+          retention-days: 7
+
+  license-check:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install license checker
+        run: npm install -g license-checker
+
+      - name: Check licenses
+        run: |
+          echo "## License Report" > license-report.md
+          echo "Generated on: $(date)" >> license-report.md
+          echo "" >> license-report.md
+          
+          # Generate license report
+          license-checker --production --csv > licenses.csv
+          
+          echo "### Production Dependencies Licenses" >> license-report.md
+          echo "\`\`\`" >> license-report.md
+          license-checker --production --summary >> license-report.md
+          echo "\`\`\`" >> license-report.md
+          
+          # Check for problematic licenses
+          if license-checker --production --failOn 'GPL; AGPL; LGPL; CPAL; EPL' 2>/dev/null; then
+            echo "✅ No problematic licenses found" >> license-report.md
+          else
+            echo "⚠️ Potentially problematic licenses detected" >> license-report.md
+          fi
+          
+          cat license-report.md
+
+      - name: Upload license report
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-compliance-report
+          path: license-report.md
+          retention-days: 30
