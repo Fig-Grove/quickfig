@@ -240,21 +240,35 @@ test("TextDecoder polyfill should decode UTF-8 bytes correctly", async (t) => {
   t.true(result.data.hasDecodeMethod);
 
   // Test basic decoding
-  t.is(result.data.ascii, 'hello');
-  t.is(result.data.twoByte, 'ä');
-  t.is(result.data.threeByte, '★');
-  t.is(result.data.fourByte, '🚀');
-  t.is(result.data.mixed, 'hello 🌍 world');
-  t.is(result.data.empty, '');
+  t.is(result.data.ascii, "hello");
+  t.is(result.data.twoByte, "ä");
+  t.is(result.data.threeByte, "★");
+  t.is(result.data.fourByte, "🚀");
+  t.is(result.data.mixed, "hello 🌍 world");
+  t.is(result.data.empty, "");
 
   // Test invalid sequences (should produce replacement character �)
-  t.true(result.data.incomplete.includes('�') || result.data.incomplete === '\uFFFD');
-  t.true(result.data.invalidContinuation.includes('�') || result.data.invalidContinuation.includes('\uFFFD'));
-  t.true(result.data.overlong.includes('�') || result.data.overlong.includes('\uFFFD'));
+  t.true(
+    result.data.incomplete.includes("�") || result.data.incomplete === "\uFFFD",
+  );
+  t.true(
+    result.data.invalidContinuation.includes("�") ||
+      result.data.invalidContinuation.includes("\uFFFD"),
+  );
+  t.true(
+    result.data.overlong.includes("�") ||
+      result.data.overlong.includes("\uFFFD"),
+  );
 
   // Test null/undefined handling
-  t.true(result.data.nullHandling.startsWith('error:') || result.data.nullHandling === '');
-  t.true(result.data.undefinedHandling.startsWith('error:') || result.data.undefinedHandling === '');
+  t.true(
+    result.data.nullHandling.startsWith("error:") ||
+      result.data.nullHandling === "",
+  );
+  t.true(
+    result.data.undefinedHandling.startsWith("error:") ||
+      result.data.undefinedHandling === "",
+  );
 });
 
 test("TextDecoder polyfill should support constructor options", async (t) => {
@@ -311,15 +325,17 @@ test("TextDecoder polyfill should support constructor options", async (t) => {
   t.true(result.data.canCreateWithOptions);
 
   // Test properties
-  t.is(result.data.encoding, 'utf-8');
+  t.is(result.data.encoding, "utf-8");
   t.is(result.data.fatal, true);
   t.is(result.data.ignoreBOM, false);
 
   // Test fatal mode behavior
-  t.not(result.data.fatalError, 'no error');
+  t.not(result.data.fatalError, "no error");
 
   // Test BOM handling (depending on implementation, BOM might be stripped or kept)
-  t.true(result.data.bomHandling === 'hi' || result.data.bomHandling === '\uFEFFhi');
+  t.true(
+    result.data.bomHandling === "hi" || result.data.bomHandling === "\uFEFFhi",
+  );
 });
 
 test("TextDecoder polyfill should handle streaming decode", async (t) => {
@@ -356,14 +372,14 @@ test("TextDecoder polyfill should handle streaming decode", async (t) => {
   `);
 
   t.true(result.ok);
-  
+
   // Test streaming decode
-  t.is(result.data.combined, 'hello 🌍');
-  t.is(result.data.part1, 'hello '); // Should not include incomplete character
-  t.is(result.data.part2, '🌍');
-  
+  t.is(result.data.combined, "hello 🌍");
+  t.is(result.data.part1, "hello "); // Should not include incomplete character
+  t.is(result.data.part2, "🌍");
+
   // Test stream mode behavior
-  t.is(result.data.streamIncomplete, ''); // Should buffer incomplete sequence
+  t.is(result.data.streamIncomplete, ""); // Should buffer incomplete sequence
   t.true(result.data.hasReplacementInFinal); // Should have replacement character
 });
 

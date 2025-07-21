@@ -80,14 +80,20 @@ function applyCorePolyfills() {
       fatal: boolean;
       ignoreBOM: boolean;
 
-      constructor(encoding?: string, options?: { fatal?: boolean; ignoreBOM?: boolean }) {
+      constructor(
+        encoding?: string,
+        options?: { fatal?: boolean; ignoreBOM?: boolean },
+      ) {
         // Simple implementation - just store options
         this.encoding = "utf-8";
         this.fatal = options?.fatal || false;
         this.ignoreBOM = options?.ignoreBOM !== false;
       }
 
-      decode(input?: ArrayBufferView | ArrayBuffer, options?: { stream?: boolean }): string {
+      decode(
+        input?: ArrayBufferView | ArrayBuffer,
+        options?: { stream?: boolean },
+      ): string {
         if (!input) return "";
 
         // Convert input to Uint8Array
@@ -97,7 +103,11 @@ function applyCorePolyfills() {
         } else if (input instanceof ArrayBuffer) {
           bytes = new Uint8Array(input);
         } else if (ArrayBuffer.isView(input)) {
-          bytes = new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+          bytes = new Uint8Array(
+            input.buffer,
+            input.byteOffset,
+            input.byteLength,
+          );
         } else {
           return "";
         }
@@ -108,7 +118,7 @@ function applyCorePolyfills() {
 
         // Handle BOM
         if (this.ignoreBOM && bytes.length >= 3) {
-          if (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+          if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
             i = 3; // Skip BOM
           }
         }
@@ -120,22 +130,22 @@ function applyCorePolyfills() {
             // ASCII
             result += String.fromCharCode(byte1);
             i++;
-          } else if ((byte1 & 0xE0) === 0xC0) {
+          } else if ((byte1 & 0xe0) === 0xc0) {
             // 2-byte sequence
             if (i + 1 >= bytes.length) {
               result += "\uFFFD"; // Replacement character
               break;
             }
             const byte2 = bytes[i + 1];
-            if ((byte2 & 0xC0) !== 0x80) {
+            if ((byte2 & 0xc0) !== 0x80) {
               result += "\uFFFD";
               i++;
             } else {
-              const codePoint = ((byte1 & 0x1F) << 6) | (byte2 & 0x3F);
+              const codePoint = ((byte1 & 0x1f) << 6) | (byte2 & 0x3f);
               result += String.fromCharCode(codePoint);
               i += 2;
             }
-          } else if ((byte1 & 0xF0) === 0xE0) {
+          } else if ((byte1 & 0xf0) === 0xe0) {
             // 3-byte sequence
             if (i + 2 >= bytes.length) {
               result += "\uFFFD";
@@ -143,12 +153,13 @@ function applyCorePolyfills() {
             }
             const byte2 = bytes[i + 1];
             const byte3 = bytes[i + 2];
-            if ((byte2 & 0xC0) !== 0x80 || (byte3 & 0xC0) !== 0x80) {
+            if ((byte2 & 0xc0) !== 0x80 || (byte3 & 0xc0) !== 0x80) {
               result += "\uFFFD";
               i++;
             } else {
-              const codePoint = ((byte1 & 0x0F) << 12) | ((byte2 & 0x3F) << 6) | (byte3 & 0x3F);
-              if (codePoint >= 0xD800 && codePoint <= 0xDFFF) {
+              const codePoint =
+                ((byte1 & 0x0f) << 12) | ((byte2 & 0x3f) << 6) | (byte3 & 0x3f);
+              if (codePoint >= 0xd800 && codePoint <= 0xdfff) {
                 // Surrogate range - invalid in UTF-8
                 result += "\uFFFD";
               } else {
@@ -156,7 +167,7 @@ function applyCorePolyfills() {
               }
               i += 3;
             }
-          } else if ((byte1 & 0xF8) === 0xF0) {
+          } else if ((byte1 & 0xf8) === 0xf0) {
             // 4-byte sequence
             if (i + 3 >= bytes.length) {
               result += "\uFFFD";
@@ -165,23 +176,27 @@ function applyCorePolyfills() {
             const byte2 = bytes[i + 1];
             const byte3 = bytes[i + 2];
             const byte4 = bytes[i + 3];
-            if ((byte2 & 0xC0) !== 0x80 || (byte3 & 0xC0) !== 0x80 || (byte4 & 0xC0) !== 0x80) {
+            if (
+              (byte2 & 0xc0) !== 0x80 ||
+              (byte3 & 0xc0) !== 0x80 ||
+              (byte4 & 0xc0) !== 0x80
+            ) {
               result += "\uFFFD";
               i++;
             } else {
-              const codePoint = 
-                ((byte1 & 0x07) << 18) | 
-                ((byte2 & 0x3F) << 12) | 
-                ((byte3 & 0x3F) << 6) | 
-                (byte4 & 0x3F);
-              
-              if (codePoint > 0x10FFFF) {
+              const codePoint =
+                ((byte1 & 0x07) << 18) |
+                ((byte2 & 0x3f) << 12) |
+                ((byte3 & 0x3f) << 6) |
+                (byte4 & 0x3f);
+
+              if (codePoint > 0x10ffff) {
                 result += "\uFFFD";
               } else {
                 // Convert to UTF-16 surrogate pair
                 const adjusted = codePoint - 0x10000;
-                const high = 0xD800 + (adjusted >> 10);
-                const low = 0xDC00 + (adjusted & 0x3FF);
+                const high = 0xd800 + (adjusted >> 10);
+                const low = 0xdc00 + (adjusted & 0x3ff);
                 result += String.fromCharCode(high, low);
               }
               i += 4;

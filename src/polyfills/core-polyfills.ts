@@ -199,14 +199,17 @@ export function applyCorePolyfills(): void {
       private _ignoreBOM: boolean;
       private _buffer: number[]; // Buffer for streaming decode
 
-      constructor(encoding: string = "utf-8", options: { fatal?: boolean; ignoreBOM?: boolean } = {}) {
+      constructor(
+        encoding: string = "utf-8",
+        options: { fatal?: boolean; ignoreBOM?: boolean } = {},
+      ) {
         // Normalize encoding name
         this._encoding = encoding.toLowerCase().replace(/[^a-z0-9]/g, "");
         if (this._encoding !== "utf8" && this._encoding !== "utf8") {
           // For now, only support UTF-8
           this._encoding = "utf8";
         }
-        
+
         this._fatal = options.fatal || false;
         this._ignoreBOM = options.ignoreBOM !== false; // Default true
         this._buffer = [];
@@ -224,12 +227,17 @@ export function applyCorePolyfills(): void {
         return this._ignoreBOM;
       }
 
-      decode(input?: ArrayBufferView | ArrayBuffer, options: { stream?: boolean } = {}): string {
+      decode(
+        input?: ArrayBufferView | ArrayBuffer,
+        options: { stream?: boolean } = {},
+      ): string {
         // Create operation context for diagnostic tracking
         const context: PolyfillOperationContext = {
           api: "TextDecoder",
           operation: "decode",
-          dataSize: input ? (input as any).byteLength || (input as any).length || 0 : 0,
+          dataSize: input
+            ? (input as any).byteLength || (input as any).length || 0
+            : 0,
           timestamp: Date.now(),
           userAgent: getSafeUserAgent(),
           attemptCount: 1,
@@ -265,7 +273,11 @@ export function applyCorePolyfills(): void {
             } else if (input instanceof ArrayBuffer) {
               bytes = new Uint8Array(input);
             } else if (ArrayBuffer.isView(input)) {
-              bytes = new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+              bytes = new Uint8Array(
+                input.buffer,
+                input.byteOffset,
+                input.byteLength,
+              );
             } else {
               if (this._fatal) {
                 throw new TypeError("Failed to decode: invalid input type");
@@ -275,7 +287,8 @@ export function applyCorePolyfills(): void {
 
             // Check constraints for large data
             if (bytes.length > 100 * 1024) {
-              const currentConstraintDetector = (globalThis as any).__figmaConstraintDetector;
+              const currentConstraintDetector = (globalThis as any)
+                .__figmaConstraintDetector;
               if (currentConstraintDetector) {
                 const result = currentConstraintDetector.checkOperation({
                   type: "data",
@@ -284,10 +297,13 @@ export function applyCorePolyfills(): void {
 
                 if (!result.allowed) {
                   if (this._fatal) {
-                    const errorMessage = result.violations[0]?.message || "Data too large";
+                    const errorMessage =
+                      result.violations[0]?.message || "Data too large";
                     throw new Error(`TextDecoder: ${errorMessage}`);
                   } else {
-                    debugWarn(`TextDecoder: ${result.violations[0]?.message || "Large data warning"}`);
+                    debugWarn(
+                      `TextDecoder: ${result.violations[0]?.message || "Large data warning"}`,
+                    );
                   }
                 }
               }
@@ -304,7 +320,11 @@ export function applyCorePolyfills(): void {
 
             // Handle BOM
             if (this._ignoreBOM && allBytes.length >= 3) {
-              if (allBytes[0] === 0xEF && allBytes[1] === 0xBB && allBytes[2] === 0xBF) {
+              if (
+                allBytes[0] === 0xef &&
+                allBytes[1] === 0xbb &&
+                allBytes[2] === 0xbf
+              ) {
                 allBytes = allBytes.slice(3);
               }
             }
@@ -322,7 +342,10 @@ export function applyCorePolyfills(): void {
       }
 
       // Extracted decoding logic
-      private performTextDecoding(bytes: number[], isStreaming: boolean): string {
+      private performTextDecoding(
+        bytes: number[],
+        isStreaming: boolean,
+      ): string {
         let result = "";
         let i = 0;
 
@@ -333,7 +356,7 @@ export function applyCorePolyfills(): void {
             // ASCII character (0xxxxxxx)
             result += String.fromCharCode(byte1);
             i++;
-          } else if ((byte1 & 0xE0) === 0xC0) {
+          } else if ((byte1 & 0xe0) === 0xc0) {
             // 2-byte sequence (110xxxxx 10xxxxxx)
             if (i + 1 >= bytes.length) {
               if (isStreaming) {
@@ -342,27 +365,33 @@ export function applyCorePolyfills(): void {
                 break;
               } else {
                 if (this._fatal) {
-                  throw new Error("Invalid UTF-8 sequence: incomplete 2-byte sequence");
+                  throw new Error(
+                    "Invalid UTF-8 sequence: incomplete 2-byte sequence",
+                  );
                 }
                 result += "\uFFFD"; // Replacement character
                 i++;
               }
             } else {
               const byte2 = bytes[i + 1];
-              if ((byte2 & 0xC0) !== 0x80) {
+              if ((byte2 & 0xc0) !== 0x80) {
                 // Invalid continuation byte
                 if (this._fatal) {
-                  throw new Error("Invalid UTF-8 sequence: invalid continuation byte");
+                  throw new Error(
+                    "Invalid UTF-8 sequence: invalid continuation byte",
+                  );
                 }
                 result += "\uFFFD";
                 i++;
               } else {
                 // Valid 2-byte sequence
-                const codePoint = ((byte1 & 0x1F) << 6) | (byte2 & 0x3F);
+                const codePoint = ((byte1 & 0x1f) << 6) | (byte2 & 0x3f);
                 // Check for overlong encoding
                 if (codePoint < 0x80) {
                   if (this._fatal) {
-                    throw new Error("Invalid UTF-8 sequence: overlong 2-byte sequence");
+                    throw new Error(
+                      "Invalid UTF-8 sequence: overlong 2-byte sequence",
+                    );
                   }
                   result += "\uFFFD";
                 } else {
@@ -371,7 +400,7 @@ export function applyCorePolyfills(): void {
                 i += 2;
               }
             }
-          } else if ((byte1 & 0xF0) === 0xE0) {
+          } else if ((byte1 & 0xf0) === 0xe0) {
             // 3-byte sequence (1110xxxx 10xxxxxx 10xxxxxx)
             if (i + 2 >= bytes.length) {
               if (isStreaming) {
@@ -379,7 +408,9 @@ export function applyCorePolyfills(): void {
                 break;
               } else {
                 if (this._fatal) {
-                  throw new Error("Invalid UTF-8 sequence: incomplete 3-byte sequence");
+                  throw new Error(
+                    "Invalid UTF-8 sequence: incomplete 3-byte sequence",
+                  );
                 }
                 result += "\uFFFD";
                 i++;
@@ -387,24 +418,33 @@ export function applyCorePolyfills(): void {
             } else {
               const byte2 = bytes[i + 1];
               const byte3 = bytes[i + 2];
-              if ((byte2 & 0xC0) !== 0x80 || (byte3 & 0xC0) !== 0x80) {
+              if ((byte2 & 0xc0) !== 0x80 || (byte3 & 0xc0) !== 0x80) {
                 if (this._fatal) {
-                  throw new Error("Invalid UTF-8 sequence: invalid continuation byte");
+                  throw new Error(
+                    "Invalid UTF-8 sequence: invalid continuation byte",
+                  );
                 }
                 result += "\uFFFD";
                 i++;
               } else {
-                const codePoint = ((byte1 & 0x0F) << 12) | ((byte2 & 0x3F) << 6) | (byte3 & 0x3F);
+                const codePoint =
+                  ((byte1 & 0x0f) << 12) |
+                  ((byte2 & 0x3f) << 6) |
+                  (byte3 & 0x3f);
                 // Check for overlong encoding
                 if (codePoint < 0x800) {
                   if (this._fatal) {
-                    throw new Error("Invalid UTF-8 sequence: overlong 3-byte sequence");
+                    throw new Error(
+                      "Invalid UTF-8 sequence: overlong 3-byte sequence",
+                    );
                   }
                   result += "\uFFFD";
-                } else if (codePoint >= 0xD800 && codePoint <= 0xDFFF) {
+                } else if (codePoint >= 0xd800 && codePoint <= 0xdfff) {
                   // Surrogate code points are invalid in UTF-8
                   if (this._fatal) {
-                    throw new Error("Invalid UTF-8 sequence: surrogate code point");
+                    throw new Error(
+                      "Invalid UTF-8 sequence: surrogate code point",
+                    );
                   }
                   result += "\uFFFD";
                 } else {
@@ -413,7 +453,7 @@ export function applyCorePolyfills(): void {
                 i += 3;
               }
             }
-          } else if ((byte1 & 0xF8) === 0xF0) {
+          } else if ((byte1 & 0xf8) === 0xf0) {
             // 4-byte sequence (11110xxx 10xxxxxx 10xxxxxx 10xxxxxx)
             if (i + 3 >= bytes.length) {
               if (isStreaming) {
@@ -421,7 +461,9 @@ export function applyCorePolyfills(): void {
                 break;
               } else {
                 if (this._fatal) {
-                  throw new Error("Invalid UTF-8 sequence: incomplete 4-byte sequence");
+                  throw new Error(
+                    "Invalid UTF-8 sequence: incomplete 4-byte sequence",
+                  );
                 }
                 result += "\uFFFD";
                 i++;
@@ -430,36 +472,46 @@ export function applyCorePolyfills(): void {
               const byte2 = bytes[i + 1];
               const byte3 = bytes[i + 2];
               const byte4 = bytes[i + 3];
-              if ((byte2 & 0xC0) !== 0x80 || (byte3 & 0xC0) !== 0x80 || (byte4 & 0xC0) !== 0x80) {
+              if (
+                (byte2 & 0xc0) !== 0x80 ||
+                (byte3 & 0xc0) !== 0x80 ||
+                (byte4 & 0xc0) !== 0x80
+              ) {
                 if (this._fatal) {
-                  throw new Error("Invalid UTF-8 sequence: invalid continuation byte");
+                  throw new Error(
+                    "Invalid UTF-8 sequence: invalid continuation byte",
+                  );
                 }
                 result += "\uFFFD";
                 i++;
               } else {
-                const codePoint = 
-                  ((byte1 & 0x07) << 18) | 
-                  ((byte2 & 0x3F) << 12) | 
-                  ((byte3 & 0x3F) << 6) | 
-                  (byte4 & 0x3F);
-                
+                const codePoint =
+                  ((byte1 & 0x07) << 18) |
+                  ((byte2 & 0x3f) << 12) |
+                  ((byte3 & 0x3f) << 6) |
+                  (byte4 & 0x3f);
+
                 // Check for overlong encoding
                 if (codePoint < 0x10000) {
                   if (this._fatal) {
-                    throw new Error("Invalid UTF-8 sequence: overlong 4-byte sequence");
+                    throw new Error(
+                      "Invalid UTF-8 sequence: overlong 4-byte sequence",
+                    );
                   }
                   result += "\uFFFD";
-                } else if (codePoint > 0x10FFFF) {
+                } else if (codePoint > 0x10ffff) {
                   // Code point out of Unicode range
                   if (this._fatal) {
-                    throw new Error("Invalid UTF-8 sequence: code point out of range");
+                    throw new Error(
+                      "Invalid UTF-8 sequence: code point out of range",
+                    );
                   }
                   result += "\uFFFD";
                 } else {
                   // Convert to UTF-16 surrogate pair
                   const adjusted = codePoint - 0x10000;
-                  const high = 0xD800 + (adjusted >> 10);
-                  const low = 0xDC00 + (adjusted & 0x3FF);
+                  const high = 0xd800 + (adjusted >> 10);
+                  const low = 0xdc00 + (adjusted & 0x3ff);
                   result += String.fromCharCode(high, low);
                 }
                 i += 4;
@@ -468,7 +520,9 @@ export function applyCorePolyfills(): void {
           } else {
             // Invalid start byte
             if (this._fatal) {
-              throw new Error(`Invalid UTF-8 sequence: invalid start byte 0x${byte1.toString(16)}`);
+              throw new Error(
+                `Invalid UTF-8 sequence: invalid start byte 0x${byte1.toString(16)}`,
+              );
             }
             result += "\uFFFD";
             i++;
