@@ -5,8 +5,8 @@
  * properly with the QuickFig library in QuickJS environments.
  */
 
-import test from 'ava';
-import { createFigmaTestEnvironment } from '../mocks/mock-quickjs-harness.js';
+import test from "ava";
+import { createFigmaTestEnvironment } from "../mocks/mock-quickjs-harness.ts";
 
 // Note: We can't directly import our polyfills in QuickJS sandbox,
 // so we'll inline the polyfill code for testing
@@ -87,7 +87,7 @@ function isQuickJSEnvironment() {
 applyEnvironmentPolyfills();
 `;
 
-test('QuickFig polyfills should be automatically applied when imported', async (t) => {
+test("QuickFig polyfills should be automatically applied when imported", async (t) => {
   const testEnv = await createFigmaTestEnvironment();
   const result = await testEnv.runSandboxed(`
     ${POLYFILL_CODE}
@@ -112,7 +112,7 @@ test('QuickFig polyfills should be automatically applied when imported', async (
   t.true(result.data.bufferWorks);
 });
 
-test('polyfills should work with QuickFig core functionality', async (t) => {
+test("polyfills should work with QuickFig core functionality", async (t) => {
   const testEnv = await createFigmaTestEnvironment();
   const result = await testEnv.runSandboxed(`
     ${POLYFILL_CODE}
@@ -181,7 +181,7 @@ test('polyfills should work with QuickFig core functionality', async (t) => {
   `);
 
   t.true(result.ok);
-  t.is(typeof result.data.size, 'number');
+  t.is(typeof result.data.size, "number");
   t.true(result.data.size > 15); // UTF-8 size should be larger than ASCII
   t.true(result.data.utf8SizeCorrect);
   t.true(result.data.totalSize > result.data.size); // Total should include key
@@ -191,7 +191,7 @@ test('polyfills should work with QuickFig core functionality', async (t) => {
   t.is(result.data.sum, 499500); // Verify loop ran correctly
 });
 
-test('polyfills should handle QuickFig boundary conditions correctly', async (t) => {
+test("polyfills should handle QuickFig boundary conditions correctly", async (t) => {
   const testEnv = await createFigmaTestEnvironment();
   const result = await testEnv.runSandboxed(`
     ${POLYFILL_CODE}
@@ -263,19 +263,19 @@ test('polyfills should handle QuickFig boundary conditions correctly', async (t)
   result.data.results.forEach((testResult) => {
     t.true(
       testResult.matches,
-      `${testResult.name} size calculation should match expected`
+      `${testResult.name} size calculation should match expected`,
     );
     t.true(
       testResult.bufferEncoderMatch,
-      `${testResult.name} Buffer and TextEncoder should agree`
+      `${testResult.name} Buffer and TextEncoder should agree`,
     );
   });
 
   // Check specific expected values
   const results = result.data.results;
-  const emptyResult = results.find((r) => r.name === 'Empty string');
-  const asciiResult = results.find((r) => r.name === '95KB ASCII');
-  const unicodeResult = results.find((r) => r.name === 'Large Unicode');
+  const emptyResult = results.find((r) => r.name === "Empty string");
+  const asciiResult = results.find((r) => r.name === "95KB ASCII");
+  const unicodeResult = results.find((r) => r.name === "Large Unicode");
 
   t.is(emptyResult.calculated, 0);
   t.is(asciiResult.calculated, 95 * 1024);
@@ -285,7 +285,7 @@ test('polyfills should handle QuickFig boundary conditions correctly', async (t)
   t.true(result.data.performanceTest.reasonable);
 });
 
-test('polyfills should work with JSON serialization (common in QuickFig)', async (t) => {
+test("polyfills should work with JSON serialization (common in QuickFig)", async (t) => {
   const testEnv = await createFigmaTestEnvironment();
   const result = await testEnv.runSandboxed(`
     ${POLYFILL_CODE}
@@ -345,31 +345,31 @@ test('polyfills should work with JSON serialization (common in QuickFig)', async
   result.data.results.forEach((testResult) => {
     t.true(
       testResult.sizesMatch,
-      `${testResult.name} Buffer and TextEncoder sizes should match`
+      `${testResult.name} Buffer and TextEncoder sizes should match`,
     );
     t.true(
       testResult.roundTripWorks,
-      `${testResult.name} JSON round-trip should work`
+      `${testResult.name} JSON round-trip should work`,
     );
-    t.is(typeof testResult.byteLength, 'number');
+    t.is(typeof testResult.byteLength, "number");
     t.true(testResult.byteLength > 0);
   });
 
   // Check Unicode handling
-  const unicodeResult = result.data.results.find((r) => r.name === 'unicode');
+  const unicodeResult = result.data.results.find((r) => r.name === "unicode");
   t.true(
     unicodeResult.hasUnicode,
-    'Unicode JSON should have byte length > string length'
+    "Unicode JSON should have byte length > string length",
   );
 
   // Check performance
   t.true(
     result.data.jsonPerformance.reasonable,
-    'JSON performance should be reasonable'
+    "JSON performance should be reasonable",
   );
 });
 
-test('polyfills should maintain compatibility with different encoding types', async (t) => {
+test("polyfills should maintain compatibility with different encoding types", async (t) => {
   const testEnv = await createFigmaTestEnvironment();
   const result = await testEnv.runSandboxed(`
     ${POLYFILL_CODE}
@@ -417,11 +417,11 @@ test('polyfills should maintain compatibility with different encoding types', as
   `);
 
   t.true(result.ok);
-  t.true(result.data.allUtf8Match, 'All UTF-8 encoding variants should match');
-  t.true(result.data.encoderBufferMatch, 'TextEncoder and Buffer should agree');
+  t.true(result.data.allUtf8Match, "All UTF-8 encoding variants should match");
+  t.true(result.data.encoderBufferMatch, "TextEncoder and Buffer should agree");
   t.true(
     result.data.testStringBytes > 15,
-    'Unicode string should be larger than ASCII length'
+    "Unicode string should be larger than ASCII length",
   );
 
   // Test Buffer.from results
