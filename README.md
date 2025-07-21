@@ -2,7 +2,7 @@
 
 **Production-ready testing framework for Figma plugins with real QuickJS constraint validation**
 
-[![npm version](https://badge.fury.io/js/@fig-grove/quickfig.svg)](https://badge.fury.io/js/@fig-grove/quickfig)
+[![npm version](https://badge.fury.io/js/@fig-grove%2Fquickfig.svg)](https://badge.fury.io/js/@fig-grove%2Fquickfig)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
 [![QuickJS](https://img.shields.io/badge/QuickJS-Validated-orange.svg)](https://bellard.org/quickjs/)
 [![Tests](https://img.shields.io/badge/Tests-43%2B-brightgreen.svg)](https://github.com/fig-grove/quickfig/tree/main/test)
