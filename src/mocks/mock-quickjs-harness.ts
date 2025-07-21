@@ -7,7 +7,7 @@
 // Store safe timing reference that won't be affected by global cleanup
 const safePerformanceNow = (() => {
   // Try performance.now() first (most accurate)
-  if (typeof performance !== 'undefined' && performance.now) {
+  if (typeof performance !== "undefined" && performance.now) {
     return performance.now.bind(performance);
   }
   // Fallback to Date.now()
@@ -26,8 +26,8 @@ export const FIGMA_SANDBOX_CONFIG: MockSandboxConfig = {
   memoryLimit: 100 * 1024 * 1024, // 100MB per plugin operation
   maxStackSize: 1024 * 1024, // 1MB stack limit
   env: {
-    NODE_ENV: 'figma-plugin-test',
-    FIGMA_PLUGIN_SIMULATION: 'true',
+    NODE_ENV: "figma-plugin-test",
+    FIGMA_PLUGIN_SIMULATION: "true",
   },
 };
 
@@ -51,20 +51,20 @@ export class MockQuickJSEnvironment {
     try {
       // Simulate QuickJS constraints
       if (code.length > this.config.memoryLimit / 1000) {
-        throw new Error('Code exceeds memory limit');
+        throw new Error("Code exceeds memory limit");
       }
 
       // Execute the code with timeout simulation
       const result = await this.executeWithTimeout(
         code,
-        this.config.executionTimeout
+        this.config.executionTimeout,
       );
       const executionTime = safePerformanceNow() - start;
 
       // Simulate UI blocking check
       if (executionTime > this.config.executionTimeout) {
         console.warn(
-          `[QuickJS]: Operation took ${executionTime}ms, exceeds UI threshold`
+          `[QuickJS]: Operation took ${executionTime}ms, exceeds UI threshold`,
         );
       }
 
@@ -86,7 +86,7 @@ export class MockQuickJSEnvironment {
 
   private async executeWithTimeout<T>(
     code: string,
-    timeoutMs: number
+    timeoutMs: number,
   ): Promise<T> {
     try {
       // Mock Figma environment constraints (APIs not available in QuickJS)
@@ -100,12 +100,18 @@ export class MockQuickJSEnvironment {
 
       // Create execution context with mocked globals and polyfills
       // Polyfills are now applied within the contextCode itself
-      
+
       // Determine if this is a simple expression or complex code
       // Check if this is an IIFE (immediately invoked function expression)
       const isIIFE = code.trim().match(/^\([\s\S]*\)\(\)$/); // ES2016 compatible multiline
-      const isSimpleExpression = (!code.includes(';') && !code.includes('{') && !code.includes('class') && !code.includes('function') && !code.trim().includes('\n')) || isIIFE;
-      
+      const isSimpleExpression =
+        (!code.includes(";") &&
+          !code.includes("{") &&
+          !code.includes("class") &&
+          !code.includes("function") &&
+          !code.trim().includes("\n")) ||
+        isIIFE;
+
       let contextCode;
       if (isSimpleExpression) {
         // Simple expression - wrap in return
@@ -114,6 +120,7 @@ export class MockQuickJSEnvironment {
           // Clear any potentially contaminated globals first
           delete globalThis.performance;
           delete globalThis.TextEncoder;
+          delete globalThis.TextDecoder;
           delete globalThis.Buffer;
           
           // Apply fresh polyfills
@@ -162,6 +169,174 @@ export class MockQuickJSEnvironment {
                 }
                 
                 return new Uint8Array(utf8);
+              }
+            };
+          }
+          if (typeof TextDecoder === 'undefined') {
+            TextDecoder = class TextDecoder {
+              constructor(encoding, options) {
+                this.encoding = 'utf-8';
+                this.fatal = (options && options.fatal) || false;
+                this.ignoreBOM = options && options.ignoreBOM === false ? false : true;
+                this._buffer = []; // Buffer for streaming decode
+              }
+              
+              decode(input, options) {
+                if (!input) return '';
+                
+                // Convert input to Uint8Array
+                let bytes;
+                if (input instanceof Uint8Array) {
+                  bytes = input;
+                } else if (input instanceof ArrayBuffer) {
+                  bytes = new Uint8Array(input);
+                } else if (ArrayBuffer.isView(input)) {
+                  bytes = new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+                } else {
+                  return '';
+                }
+                
+                // Combine with buffered bytes for streaming
+                let allBytes;
+                if (this._buffer.length > 0) {
+                  allBytes = [...this._buffer, ...Array.from(bytes)];
+                  this._buffer = [];
+                } else {
+                  allBytes = Array.from(bytes);
+                }
+
+                // Simple UTF-8 decoding
+                let result = '';
+                let i = 0;
+                const isStreaming = options && options.stream;
+                
+                // Handle BOM
+                if (this.ignoreBOM && allBytes.length >= 3) {
+                  if (allBytes[0] === 0xEF && allBytes[1] === 0xBB && allBytes[2] === 0xBF) {
+                    i = 3; // Skip BOM
+                  }
+                }
+                
+                while (i < allBytes.length) {
+                  const byte1 = allBytes[i];
+                  
+                  if (byte1 < 0x80) {
+                    // ASCII
+                    result += String.fromCharCode(byte1);
+                    i++;
+                  } else if ((byte1 & 0xE0) === 0xC0) {
+                    // 2-byte sequence
+                    if (i + 1 >= allBytes.length) {
+                      if (isStreaming) {
+                        // Buffer incomplete sequence for next decode
+                        this._buffer = allBytes.slice(i);
+                        break;
+                      } else {
+                        if (this.fatal) {
+                          throw new Error('Invalid UTF-8 sequence: incomplete 2-byte sequence');
+                        }
+                        result += '\uFFFD'; // Replacement character
+                        break;
+                      }
+                    }
+                    const byte2 = allBytes[i + 1];
+                    if ((byte2 & 0xC0) !== 0x80) {
+                      if (this.fatal) {
+                        throw new Error('Invalid UTF-8 sequence: invalid continuation byte');
+                      }
+                      result += '\uFFFD';
+                      i++;
+                    } else {
+                      const codePoint = ((byte1 & 0x1F) << 6) | (byte2 & 0x3F);
+                      // Check for overlong encoding
+                      if (codePoint < 0x80) {
+                        if (this.fatal) {
+                          throw new Error('Invalid UTF-8 sequence: overlong 2-byte sequence');
+                        }
+                        result += '\uFFFD';
+                      } else {
+                        result += String.fromCharCode(codePoint);
+                      }
+                      i += 2;
+                    }
+                  } else if ((byte1 & 0xF0) === 0xE0) {
+                    // 3-byte sequence
+                    if (i + 2 >= allBytes.length) {
+                      if (isStreaming) {
+                        this._buffer = allBytes.slice(i);
+                        break;
+                      } else {
+                        result += '\uFFFD';
+                        break;
+                      }
+                    }
+                    const byte2 = allBytes[i + 1];
+                    const byte3 = allBytes[i + 2];
+                    if ((byte2 & 0xC0) !== 0x80 || (byte3 & 0xC0) !== 0x80) {
+                      result += '\uFFFD';
+                      i++;
+                    } else {
+                      const codePoint = ((byte1 & 0x0F) << 12) | ((byte2 & 0x3F) << 6) | (byte3 & 0x3F);
+                      // Check for overlong encoding
+                      if (codePoint < 0x800) {
+                        result += '\uFFFD';
+                      } else if (codePoint >= 0xD800 && codePoint <= 0xDFFF) {
+                        // Surrogate range - invalid in UTF-8
+                        result += '\uFFFD';
+                      } else {
+                        result += String.fromCharCode(codePoint);
+                      }
+                      i += 3;
+                    }
+                  } else if ((byte1 & 0xF8) === 0xF0) {
+                    // 4-byte sequence
+                    if (i + 3 >= allBytes.length) {
+                      if (isStreaming) {
+                        this._buffer = allBytes.slice(i);
+                        break;
+                      } else {
+                        result += '\uFFFD';
+                        break;
+                      }
+                    }
+                    const byte2 = allBytes[i + 1];
+                    const byte3 = allBytes[i + 2];
+                    const byte4 = allBytes[i + 3];
+                    if ((byte2 & 0xC0) !== 0x80 || (byte3 & 0xC0) !== 0x80 || (byte4 & 0xC0) !== 0x80) {
+                      result += '\uFFFD';
+                      i++;
+                    } else {
+                      const codePoint = 
+                        ((byte1 & 0x07) << 18) | 
+                        ((byte2 & 0x3F) << 12) | 
+                        ((byte3 & 0x3F) << 6) | 
+                        (byte4 & 0x3F);
+                      
+                      // Check for overlong encoding
+                      if (codePoint < 0x10000) {
+                        result += '\uFFFD';
+                      } else if (codePoint > 0x10FFFF) {
+                        result += '\uFFFD';
+                      } else {
+                        // Convert to UTF-16 surrogate pair
+                        const adjusted = codePoint - 0x10000;
+                        const high = 0xD800 + (adjusted >> 10);
+                        const low = 0xDC00 + (adjusted & 0x3FF);
+                        result += String.fromCharCode(high, low);
+                      }
+                      i += 4;
+                    }
+                  } else {
+                    // Invalid start byte
+                    if (this.fatal) {
+                      throw new Error('Invalid UTF-8 sequence: invalid start byte 0x' + byte1.toString(16));
+                    }
+                    result += '\uFFFD';
+                    i++;
+                  }
+                }
+                
+                return result;
               }
             };
           }
@@ -227,6 +402,7 @@ export class MockQuickJSEnvironment {
           // Clear any potentially contaminated globals first
           delete globalThis.performance;
           delete globalThis.TextEncoder;
+          delete globalThis.TextDecoder;
           delete globalThis.Buffer;
           
           // Apply fresh polyfills
@@ -275,6 +451,174 @@ export class MockQuickJSEnvironment {
                 }
                 
                 return new Uint8Array(utf8);
+              }
+            };
+          }
+          if (typeof TextDecoder === 'undefined') {
+            TextDecoder = class TextDecoder {
+              constructor(encoding, options) {
+                this.encoding = 'utf-8';
+                this.fatal = (options && options.fatal) || false;
+                this.ignoreBOM = options && options.ignoreBOM === false ? false : true;
+                this._buffer = []; // Buffer for streaming decode
+              }
+              
+              decode(input, options) {
+                if (!input) return '';
+                
+                // Convert input to Uint8Array
+                let bytes;
+                if (input instanceof Uint8Array) {
+                  bytes = input;
+                } else if (input instanceof ArrayBuffer) {
+                  bytes = new Uint8Array(input);
+                } else if (ArrayBuffer.isView(input)) {
+                  bytes = new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+                } else {
+                  return '';
+                }
+                
+                // Combine with buffered bytes for streaming
+                let allBytes;
+                if (this._buffer.length > 0) {
+                  allBytes = [...this._buffer, ...Array.from(bytes)];
+                  this._buffer = [];
+                } else {
+                  allBytes = Array.from(bytes);
+                }
+
+                // Simple UTF-8 decoding
+                let result = '';
+                let i = 0;
+                const isStreaming = options && options.stream;
+                
+                // Handle BOM
+                if (this.ignoreBOM && allBytes.length >= 3) {
+                  if (allBytes[0] === 0xEF && allBytes[1] === 0xBB && allBytes[2] === 0xBF) {
+                    i = 3; // Skip BOM
+                  }
+                }
+                
+                while (i < allBytes.length) {
+                  const byte1 = allBytes[i];
+                  
+                  if (byte1 < 0x80) {
+                    // ASCII
+                    result += String.fromCharCode(byte1);
+                    i++;
+                  } else if ((byte1 & 0xE0) === 0xC0) {
+                    // 2-byte sequence
+                    if (i + 1 >= allBytes.length) {
+                      if (isStreaming) {
+                        // Buffer incomplete sequence for next decode
+                        this._buffer = allBytes.slice(i);
+                        break;
+                      } else {
+                        if (this.fatal) {
+                          throw new Error('Invalid UTF-8 sequence: incomplete 2-byte sequence');
+                        }
+                        result += '\uFFFD'; // Replacement character
+                        break;
+                      }
+                    }
+                    const byte2 = allBytes[i + 1];
+                    if ((byte2 & 0xC0) !== 0x80) {
+                      if (this.fatal) {
+                        throw new Error('Invalid UTF-8 sequence: invalid continuation byte');
+                      }
+                      result += '\uFFFD';
+                      i++;
+                    } else {
+                      const codePoint = ((byte1 & 0x1F) << 6) | (byte2 & 0x3F);
+                      // Check for overlong encoding
+                      if (codePoint < 0x80) {
+                        if (this.fatal) {
+                          throw new Error('Invalid UTF-8 sequence: overlong 2-byte sequence');
+                        }
+                        result += '\uFFFD';
+                      } else {
+                        result += String.fromCharCode(codePoint);
+                      }
+                      i += 2;
+                    }
+                  } else if ((byte1 & 0xF0) === 0xE0) {
+                    // 3-byte sequence
+                    if (i + 2 >= allBytes.length) {
+                      if (isStreaming) {
+                        this._buffer = allBytes.slice(i);
+                        break;
+                      } else {
+                        result += '\uFFFD';
+                        break;
+                      }
+                    }
+                    const byte2 = allBytes[i + 1];
+                    const byte3 = allBytes[i + 2];
+                    if ((byte2 & 0xC0) !== 0x80 || (byte3 & 0xC0) !== 0x80) {
+                      result += '\uFFFD';
+                      i++;
+                    } else {
+                      const codePoint = ((byte1 & 0x0F) << 12) | ((byte2 & 0x3F) << 6) | (byte3 & 0x3F);
+                      // Check for overlong encoding
+                      if (codePoint < 0x800) {
+                        result += '\uFFFD';
+                      } else if (codePoint >= 0xD800 && codePoint <= 0xDFFF) {
+                        // Surrogate range - invalid in UTF-8
+                        result += '\uFFFD';
+                      } else {
+                        result += String.fromCharCode(codePoint);
+                      }
+                      i += 3;
+                    }
+                  } else if ((byte1 & 0xF8) === 0xF0) {
+                    // 4-byte sequence
+                    if (i + 3 >= allBytes.length) {
+                      if (isStreaming) {
+                        this._buffer = allBytes.slice(i);
+                        break;
+                      } else {
+                        result += '\uFFFD';
+                        break;
+                      }
+                    }
+                    const byte2 = allBytes[i + 1];
+                    const byte3 = allBytes[i + 2];
+                    const byte4 = allBytes[i + 3];
+                    if ((byte2 & 0xC0) !== 0x80 || (byte3 & 0xC0) !== 0x80 || (byte4 & 0xC0) !== 0x80) {
+                      result += '\uFFFD';
+                      i++;
+                    } else {
+                      const codePoint = 
+                        ((byte1 & 0x07) << 18) | 
+                        ((byte2 & 0x3F) << 12) | 
+                        ((byte3 & 0x3F) << 6) | 
+                        (byte4 & 0x3F);
+                      
+                      // Check for overlong encoding
+                      if (codePoint < 0x10000) {
+                        result += '\uFFFD';
+                      } else if (codePoint > 0x10FFFF) {
+                        result += '\uFFFD';
+                      } else {
+                        // Convert to UTF-16 surrogate pair
+                        const adjusted = codePoint - 0x10000;
+                        const high = 0xD800 + (adjusted >> 10);
+                        const low = 0xDC00 + (adjusted & 0x3FF);
+                        result += String.fromCharCode(high, low);
+                      }
+                      i += 4;
+                    }
+                  } else {
+                    // Invalid start byte
+                    if (this.fatal) {
+                      throw new Error('Invalid UTF-8 sequence: invalid start byte 0x' + byte1.toString(16));
+                    }
+                    result += '\uFFFD';
+                    i++;
+                  }
+                }
+                
+                return result;
               }
             };
           }
@@ -337,13 +681,13 @@ export class MockQuickJSEnvironment {
 
       // Execute the function - polyfills are now applied within the contextCode
       const func = new Function(contextCode);
-      
+
       const result = func.call({});
-      
+
       return result;
     } catch (error) {
       throw new Error(
-        `QuickJS execution error: ${error instanceof Error ? error.message : String(error)}`
+        `QuickJS execution error: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
@@ -354,7 +698,7 @@ export async function createFigmaTestEnvironment() {
   return {
     runSandboxed: (code: string | (() => any)) => {
       // Handle function inputs by converting to string
-      if (typeof code === 'function') {
+      if (typeof code === "function") {
         // Convert function to string, wrapping in parentheses and calling it
         const funcStr = `(${code.toString()})()`;
         return mockEnv.runSandboxed(funcStr);

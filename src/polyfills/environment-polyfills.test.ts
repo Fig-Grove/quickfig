@@ -158,12 +158,7 @@ test("TextEncoder polyfill should encode UTF-8 strings correctly", async (t) => 
 test("TextDecoder polyfill should decode UTF-8 bytes correctly", async (t) => {
   const testEnv = await createFigmaTestEnvironment();
   const result = await testEnv.runSandboxed(`
-    // Clear any existing TextDecoder to test polyfill
-    if (typeof TextDecoder !== 'undefined') {
-      delete globalThis.TextDecoder;
-    }
-    
-    // This will fail without implementation
+    // The polyfill should be applied automatically by the mock harness
     const decoder = new TextDecoder();
     
     // Test basic ASCII decoding
@@ -265,11 +260,6 @@ test("TextDecoder polyfill should decode UTF-8 bytes correctly", async (t) => {
 test("TextDecoder polyfill should support constructor options", async (t) => {
   const testEnv = await createFigmaTestEnvironment();
   const result = await testEnv.runSandboxed(`
-    // Clear any existing TextDecoder to test polyfill
-    if (typeof TextDecoder !== 'undefined') {
-      delete globalThis.TextDecoder;
-    }
-    
     // Test constructor with encoding parameter
     const utf8Decoder = new TextDecoder('utf-8');
     const defaultDecoder = new TextDecoder();
@@ -335,11 +325,6 @@ test("TextDecoder polyfill should support constructor options", async (t) => {
 test("TextDecoder polyfill should handle streaming decode", async (t) => {
   const testEnv = await createFigmaTestEnvironment();
   const result = await testEnv.runSandboxed(`
-    // Clear any existing TextDecoder to test polyfill
-    if (typeof TextDecoder !== 'undefined') {
-      delete globalThis.TextDecoder;
-    }
-    
     const decoder = new TextDecoder();
     
     // Test streaming decode with multi-byte character split across chunks

@@ -1,17 +1,17 @@
 /**
  * Core Polyfills for QuickJS Compatibility
- * 
- * Provides minimal polyfills for essential APIs that are not available 
- * in Figma's QuickJS runtime environment. Enhanced with comprehensive 
+ *
+ * Provides minimal polyfills for essential APIs that are not available
+ * in Figma's QuickJS runtime environment. Enhanced with comprehensive
  * error boundaries and type safety.
  */
 
 // Conditional diagnostic imports for better tree-shaking
 // Types are imported dynamically when needed to avoid heavy dependencies
-import { debugWarn, getSafeUserAgent } from './debug-utils.js';
-import { initializeWorkerConstraint } from './worker-constraint.js';
-import { executeWithErrorBoundarySynchronous } from './polyfill-error-boundaries.js';
-import type { PolyfillOperationContext } from './polyfill-types.js';
+import { debugWarn, getSafeUserAgent } from "./debug-utils.js";
+import { initializeWorkerConstraint } from "./worker-constraint.js";
+import { executeWithErrorBoundarySynchronous } from "./polyfill-error-boundaries.js";
+import type { PolyfillOperationContext } from "./polyfill-types.js";
 
 /**
  * Apply core environment polyfills conditionally
@@ -22,24 +22,24 @@ export function applyCorePolyfills(): void {
   const constraintDetector = (globalThis as any).__figmaConstraintDetector;
 
   // performance.now() polyfill
-  if (typeof performance === 'undefined') {
+  if (typeof performance === "undefined") {
     const perfPolyfill = {
       now: () => Date.now(),
-      __polyfilled: true
+      __polyfilled: true,
     };
-    
+
     (globalThis as any).performance = perfPolyfill;
-    
+
     if (constraintDetector) {
       constraintDetector.checkOperation({
-        type: 'api',
-        api: 'performance'
+        type: "api",
+        api: "performance",
       });
     }
   }
 
   // TextEncoder polyfill with diagnostic framework
-  if (typeof TextEncoder === 'undefined') {
+  if (typeof TextEncoder === "undefined") {
     (globalThis as any).TextEncoder = class TextEncoder {
       constructor() {
         // Explicit constructor required for 'new TextEncoder()' calls in QuickJS
@@ -48,16 +48,16 @@ export function applyCorePolyfills(): void {
       encode(input: string): Uint8Array {
         // Create operation context for diagnostic tracking and error boundaries
         const context: PolyfillOperationContext = {
-          api: 'TextEncoder',
-          operation: 'encode',
+          api: "TextEncoder",
+          operation: "encode",
           dataSize: input ? input.length : 0,
           timestamp: Date.now(),
           userAgent: getSafeUserAgent(),
           attemptCount: 1,
-          sessionId: '', // Will be set by diagnostic engine
+          sessionId: "", // Will be set by diagnostic engine
           codeLocation: {
-            function: 'TextEncoder.encode'
-          }
+            function: "TextEncoder.encode",
+          },
         };
 
         // Execute with error boundary protection (synchronous)
@@ -68,7 +68,7 @@ export function applyCorePolyfills(): void {
             try {
               diagnosticEngine = (globalThis as any).__polyfillDiagnosticEngine;
               if (diagnosticEngine) {
-                diagnosticEngine.trackUsagePattern('TextEncoder', context);
+                diagnosticEngine.trackUsagePattern("TextEncoder", context);
               }
             } catch (error) {
               // Diagnostic engine not available
@@ -77,18 +77,20 @@ export function applyCorePolyfills(): void {
             // Check constraints for large strings
             if (input && input.length > 100 * 1024) {
               let shouldThrow = false;
-              let errorMessage = 'Data too large for TextEncoder';
+              let errorMessage = "Data too large for TextEncoder";
 
-              const currentConstraintDetector = (globalThis as any).__figmaConstraintDetector;
+              const currentConstraintDetector = (globalThis as any)
+                .__figmaConstraintDetector;
               if (currentConstraintDetector) {
                 const result = currentConstraintDetector.checkOperation({
-                  type: 'data',
-                  data: input
+                  type: "data",
+                  data: input,
                 });
-                
+
                 if (!result.allowed) {
                   shouldThrow = true;
-                  errorMessage = result.violations[0]?.message || 'Data too large';
+                  errorMessage =
+                    result.violations[0]?.message || "Data too large";
                 }
               }
 
@@ -96,10 +98,10 @@ export function applyCorePolyfills(): void {
                 if (diagnosticEngine) {
                   // Generate comprehensive diagnostic error
                   const diagnosticInfo = diagnosticEngine.generateEnhancedError(
-                    'TextEncoder',
-                    'encode',
+                    "TextEncoder",
+                    "encode",
                     errorMessage,
-                    context
+                    context,
                   );
                   const error = new Error(diagnosticInfo.message);
                   (error as any).diagnostic = diagnosticInfo;
@@ -124,7 +126,7 @@ export function applyCorePolyfills(): void {
               bytes.push(code < 128 ? code : 63); // '?' for non-ASCII
             }
             return new Uint8Array(bytes);
-          }
+          },
         );
       }
 
@@ -183,27 +185,326 @@ export function applyCorePolyfills(): void {
 
     if (constraintDetector) {
       constraintDetector.checkOperation({
-        type: 'api',
-        api: 'TextEncoder'
+        type: "api",
+        api: "TextEncoder",
+      });
+    }
+  }
+
+  // TextDecoder polyfill with diagnostic framework
+  if (typeof TextDecoder === "undefined") {
+    (globalThis as any).TextDecoder = class TextDecoder {
+      private _encoding: string;
+      private _fatal: boolean;
+      private _ignoreBOM: boolean;
+      private _buffer: number[]; // Buffer for streaming decode
+
+      constructor(encoding: string = "utf-8", options: { fatal?: boolean; ignoreBOM?: boolean } = {}) {
+        // Normalize encoding name
+        this._encoding = encoding.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (this._encoding !== "utf8" && this._encoding !== "utf8") {
+          // For now, only support UTF-8
+          this._encoding = "utf8";
+        }
+        
+        this._fatal = options.fatal || false;
+        this._ignoreBOM = options.ignoreBOM !== false; // Default true
+        this._buffer = [];
+      }
+
+      get encoding(): string {
+        return "utf-8";
+      }
+
+      get fatal(): boolean {
+        return this._fatal;
+      }
+
+      get ignoreBOM(): boolean {
+        return this._ignoreBOM;
+      }
+
+      decode(input?: ArrayBufferView | ArrayBuffer, options: { stream?: boolean } = {}): string {
+        // Create operation context for diagnostic tracking
+        const context: PolyfillOperationContext = {
+          api: "TextDecoder",
+          operation: "decode",
+          dataSize: input ? (input as any).byteLength || (input as any).length || 0 : 0,
+          timestamp: Date.now(),
+          userAgent: getSafeUserAgent(),
+          attemptCount: 1,
+          sessionId: "",
+          codeLocation: {
+            function: "TextDecoder.decode",
+          },
+        };
+
+        // Execute with error boundary protection
+        return executeWithErrorBoundarySynchronous(
+          () => {
+            // Get diagnostic engine for enhanced error handling
+            let diagnosticEngine: any = null;
+            try {
+              diagnosticEngine = (globalThis as any).__polyfillDiagnosticEngine;
+              if (diagnosticEngine) {
+                diagnosticEngine.trackUsagePattern("TextDecoder", context);
+              }
+            } catch (error) {
+              // Diagnostic engine not available
+            }
+
+            // Handle null/undefined input
+            if (!input) {
+              return "";
+            }
+
+            // Convert input to Uint8Array
+            let bytes: Uint8Array;
+            if (input instanceof Uint8Array) {
+              bytes = input;
+            } else if (input instanceof ArrayBuffer) {
+              bytes = new Uint8Array(input);
+            } else if (ArrayBuffer.isView(input)) {
+              bytes = new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+            } else {
+              if (this._fatal) {
+                throw new TypeError("Failed to decode: invalid input type");
+              }
+              return "";
+            }
+
+            // Check constraints for large data
+            if (bytes.length > 100 * 1024) {
+              const currentConstraintDetector = (globalThis as any).__figmaConstraintDetector;
+              if (currentConstraintDetector) {
+                const result = currentConstraintDetector.checkOperation({
+                  type: "data",
+                  size: bytes.length,
+                });
+
+                if (!result.allowed) {
+                  if (this._fatal) {
+                    const errorMessage = result.violations[0]?.message || "Data too large";
+                    throw new Error(`TextDecoder: ${errorMessage}`);
+                  } else {
+                    debugWarn(`TextDecoder: ${result.violations[0]?.message || "Large data warning"}`);
+                  }
+                }
+              }
+            }
+
+            // Combine with buffered bytes for streaming
+            let allBytes: number[];
+            if (this._buffer.length > 0) {
+              allBytes = [...this._buffer, ...bytes];
+              this._buffer = [];
+            } else {
+              allBytes = Array.from(bytes);
+            }
+
+            // Handle BOM
+            if (this._ignoreBOM && allBytes.length >= 3) {
+              if (allBytes[0] === 0xEF && allBytes[1] === 0xBB && allBytes[2] === 0xBF) {
+                allBytes = allBytes.slice(3);
+              }
+            }
+
+            // Decode UTF-8
+            return this.performTextDecoding(allBytes, options.stream || false);
+          },
+          context,
+          // Fallback function for error recovery
+          () => {
+            // Minimal fallback - return empty string
+            return "";
+          },
+        );
+      }
+
+      // Extracted decoding logic
+      private performTextDecoding(bytes: number[], isStreaming: boolean): string {
+        let result = "";
+        let i = 0;
+
+        while (i < bytes.length) {
+          const byte1 = bytes[i];
+
+          if (byte1 < 0x80) {
+            // ASCII character (0xxxxxxx)
+            result += String.fromCharCode(byte1);
+            i++;
+          } else if ((byte1 & 0xE0) === 0xC0) {
+            // 2-byte sequence (110xxxxx 10xxxxxx)
+            if (i + 1 >= bytes.length) {
+              if (isStreaming) {
+                // Buffer incomplete sequence for next decode
+                this._buffer = bytes.slice(i);
+                break;
+              } else {
+                if (this._fatal) {
+                  throw new Error("Invalid UTF-8 sequence: incomplete 2-byte sequence");
+                }
+                result += "\uFFFD"; // Replacement character
+                i++;
+              }
+            } else {
+              const byte2 = bytes[i + 1];
+              if ((byte2 & 0xC0) !== 0x80) {
+                // Invalid continuation byte
+                if (this._fatal) {
+                  throw new Error("Invalid UTF-8 sequence: invalid continuation byte");
+                }
+                result += "\uFFFD";
+                i++;
+              } else {
+                // Valid 2-byte sequence
+                const codePoint = ((byte1 & 0x1F) << 6) | (byte2 & 0x3F);
+                // Check for overlong encoding
+                if (codePoint < 0x80) {
+                  if (this._fatal) {
+                    throw new Error("Invalid UTF-8 sequence: overlong 2-byte sequence");
+                  }
+                  result += "\uFFFD";
+                } else {
+                  result += String.fromCharCode(codePoint);
+                }
+                i += 2;
+              }
+            }
+          } else if ((byte1 & 0xF0) === 0xE0) {
+            // 3-byte sequence (1110xxxx 10xxxxxx 10xxxxxx)
+            if (i + 2 >= bytes.length) {
+              if (isStreaming) {
+                this._buffer = bytes.slice(i);
+                break;
+              } else {
+                if (this._fatal) {
+                  throw new Error("Invalid UTF-8 sequence: incomplete 3-byte sequence");
+                }
+                result += "\uFFFD";
+                i++;
+              }
+            } else {
+              const byte2 = bytes[i + 1];
+              const byte3 = bytes[i + 2];
+              if ((byte2 & 0xC0) !== 0x80 || (byte3 & 0xC0) !== 0x80) {
+                if (this._fatal) {
+                  throw new Error("Invalid UTF-8 sequence: invalid continuation byte");
+                }
+                result += "\uFFFD";
+                i++;
+              } else {
+                const codePoint = ((byte1 & 0x0F) << 12) | ((byte2 & 0x3F) << 6) | (byte3 & 0x3F);
+                // Check for overlong encoding
+                if (codePoint < 0x800) {
+                  if (this._fatal) {
+                    throw new Error("Invalid UTF-8 sequence: overlong 3-byte sequence");
+                  }
+                  result += "\uFFFD";
+                } else if (codePoint >= 0xD800 && codePoint <= 0xDFFF) {
+                  // Surrogate code points are invalid in UTF-8
+                  if (this._fatal) {
+                    throw new Error("Invalid UTF-8 sequence: surrogate code point");
+                  }
+                  result += "\uFFFD";
+                } else {
+                  result += String.fromCharCode(codePoint);
+                }
+                i += 3;
+              }
+            }
+          } else if ((byte1 & 0xF8) === 0xF0) {
+            // 4-byte sequence (11110xxx 10xxxxxx 10xxxxxx 10xxxxxx)
+            if (i + 3 >= bytes.length) {
+              if (isStreaming) {
+                this._buffer = bytes.slice(i);
+                break;
+              } else {
+                if (this._fatal) {
+                  throw new Error("Invalid UTF-8 sequence: incomplete 4-byte sequence");
+                }
+                result += "\uFFFD";
+                i++;
+              }
+            } else {
+              const byte2 = bytes[i + 1];
+              const byte3 = bytes[i + 2];
+              const byte4 = bytes[i + 3];
+              if ((byte2 & 0xC0) !== 0x80 || (byte3 & 0xC0) !== 0x80 || (byte4 & 0xC0) !== 0x80) {
+                if (this._fatal) {
+                  throw new Error("Invalid UTF-8 sequence: invalid continuation byte");
+                }
+                result += "\uFFFD";
+                i++;
+              } else {
+                const codePoint = 
+                  ((byte1 & 0x07) << 18) | 
+                  ((byte2 & 0x3F) << 12) | 
+                  ((byte3 & 0x3F) << 6) | 
+                  (byte4 & 0x3F);
+                
+                // Check for overlong encoding
+                if (codePoint < 0x10000) {
+                  if (this._fatal) {
+                    throw new Error("Invalid UTF-8 sequence: overlong 4-byte sequence");
+                  }
+                  result += "\uFFFD";
+                } else if (codePoint > 0x10FFFF) {
+                  // Code point out of Unicode range
+                  if (this._fatal) {
+                    throw new Error("Invalid UTF-8 sequence: code point out of range");
+                  }
+                  result += "\uFFFD";
+                } else {
+                  // Convert to UTF-16 surrogate pair
+                  const adjusted = codePoint - 0x10000;
+                  const high = 0xD800 + (adjusted >> 10);
+                  const low = 0xDC00 + (adjusted & 0x3FF);
+                  result += String.fromCharCode(high, low);
+                }
+                i += 4;
+              }
+            }
+          } else {
+            // Invalid start byte
+            if (this._fatal) {
+              throw new Error(`Invalid UTF-8 sequence: invalid start byte 0x${byte1.toString(16)}`);
+            }
+            result += "\uFFFD";
+            i++;
+          }
+        }
+
+        return result;
+      }
+    };
+
+    // Mark as polyfilled
+    (globalThis as any).TextDecoder.__polyfilled = true;
+
+    if (constraintDetector) {
+      constraintDetector.checkOperation({
+        type: "api",
+        api: "TextDecoder",
       });
     }
   }
 
   // Buffer polyfill for QuickJS environments
-  if (typeof (globalThis as any).Buffer === 'undefined') {
+  if (typeof (globalThis as any).Buffer === "undefined") {
     (globalThis as any).Buffer = {
       byteLength(str: string, encoding?: string): number {
         const context: PolyfillOperationContext = {
-          api: 'Buffer',
-          operation: 'byteLength',
+          api: "Buffer",
+          operation: "byteLength",
           dataSize: str ? str.length : 0,
           timestamp: Date.now(),
           userAgent: getSafeUserAgent(),
           attemptCount: 1,
-          sessionId: '',
+          sessionId: "",
           codeLocation: {
-            function: 'Buffer.byteLength'
-          }
+            function: "Buffer.byteLength",
+          },
         };
 
         // Execute with error boundary protection (synchronous)
@@ -214,7 +515,7 @@ export function applyCorePolyfills(): void {
             try {
               diagnosticEngine = (globalThis as any).__polyfillDiagnosticEngine;
               if (diagnosticEngine) {
-                diagnosticEngine.trackUsagePattern('Buffer', context);
+                diagnosticEngine.trackUsagePattern("Buffer", context);
               }
             } catch (error) {
               // Continue without diagnostic engine
@@ -222,13 +523,14 @@ export function applyCorePolyfills(): void {
 
             // Check constraints for large strings
             if (str && str.length > 100 * 1024) {
-              let warningMessage = 'Large string in Buffer.byteLength';
+              let warningMessage = "Large string in Buffer.byteLength";
 
-              const currentConstraintDetector = (globalThis as any).__figmaConstraintDetector;
+              const currentConstraintDetector = (globalThis as any)
+                .__figmaConstraintDetector;
               if (currentConstraintDetector) {
                 const result = currentConstraintDetector.checkOperation({
-                  type: 'data',
-                  data: str
+                  type: "data",
+                  data: str,
                 });
 
                 if (result.violations.length > 0) {
@@ -238,10 +540,10 @@ export function applyCorePolyfills(): void {
 
               if (diagnosticEngine) {
                 const diagnosticInfo = diagnosticEngine.generateEnhancedError(
-                  'Buffer',
-                  'byteLength',
+                  "Buffer",
+                  "byteLength",
                   warningMessage,
-                  context
+                  context,
                 );
                 debugWarn(diagnosticInfo.message);
               } else {
@@ -251,7 +553,7 @@ export function applyCorePolyfills(): void {
 
             // Simple UTF-8 byte length calculation
             if (!str) return 0;
-            if (encoding && encoding.toLowerCase() === 'ascii') {
+            if (encoding && encoding.toLowerCase() === "ascii") {
               return str.length;
             }
 
@@ -285,42 +587,47 @@ export function applyCorePolyfills(): void {
           () => {
             // Fast approximation fallback
             if (!str) return 0;
-            if (encoding && encoding.toLowerCase() === 'ascii') {
+            if (encoding && encoding.toLowerCase() === "ascii") {
               return str.length;
             }
             // Rough UTF-8 estimate
             return Math.ceil(str.length * 1.5);
-          }
+          },
         );
       },
 
       from(arrayLike: any, _encoding?: string): Uint8Array {
         // Track Buffer.from usage for diagnostics
         const context: PolyfillOperationContext = {
-          api: 'Buffer',
-          operation: 'from',
-          dataSize: typeof arrayLike === 'string' ? arrayLike.length : 
-                   Array.isArray(arrayLike) ? arrayLike.length : 0,
+          api: "Buffer",
+          operation: "from",
+          dataSize:
+            typeof arrayLike === "string"
+              ? arrayLike.length
+              : Array.isArray(arrayLike)
+                ? arrayLike.length
+                : 0,
           timestamp: Date.now(),
           userAgent: getSafeUserAgent(),
           attemptCount: 1,
-          sessionId: '',
+          sessionId: "",
           codeLocation: {
-            function: 'Buffer.from'
-          }
+            function: "Buffer.from",
+          },
         };
 
         // Get diagnostic engine for tracking
         try {
-          const diagnosticEngine = (globalThis as any).__polyfillDiagnosticEngine;
+          const diagnosticEngine = (globalThis as any)
+            .__polyfillDiagnosticEngine;
           if (diagnosticEngine) {
-            diagnosticEngine.trackUsagePattern('Buffer', context);
+            diagnosticEngine.trackUsagePattern("Buffer", context);
           }
         } catch (error) {
           // Continue without diagnostic engine
         }
 
-        if (typeof arrayLike === 'string') {
+        if (typeof arrayLike === "string") {
           // Convert string to Uint8Array using TextEncoder
           const encoder = new (globalThis as any).TextEncoder();
           return encoder.encode(arrayLike);
@@ -334,19 +641,19 @@ export function applyCorePolyfills(): void {
         return new Uint8Array(0);
       },
 
-      __polyfilled: true
+      __polyfilled: true,
     };
 
     if (constraintDetector) {
       constraintDetector.checkOperation({
-        type: 'api',
-        api: 'Buffer'
+        type: "api",
+        api: "Buffer",
       });
     }
   }
 
   // Set polyfill for QuickJS environments (needed by fflate compression)
-  if (typeof Set === 'undefined') {
+  if (typeof Set === "undefined") {
     (globalThis as any).Set = class Set {
       constructor(iterable?: any) {
         this._values = [];
@@ -402,14 +709,14 @@ export function applyCorePolyfills(): void {
 
     if (constraintDetector) {
       constraintDetector.checkOperation({
-        type: 'api',
-        api: 'Set'
+        type: "api",
+        api: "Set",
       });
     }
   }
 
   // Map polyfill for QuickJS environments (needed by fflate compression)
-  if (typeof Map === 'undefined') {
+  if (typeof Map === "undefined") {
     (globalThis as any).Map = class Map {
       constructor(iterable?: any) {
         this._keys = [];
@@ -478,25 +785,25 @@ export function applyCorePolyfills(): void {
 
     if (constraintDetector) {
       constraintDetector.checkOperation({
-        type: 'api',
-        api: 'Map'
+        type: "api",
+        api: "Map",
       });
     }
   }
 
   // Blob polyfill for QuickJS environments (needed by fflate compression)
-  if (typeof Blob === 'undefined') {
+  if (typeof Blob === "undefined") {
     (globalThis as any).Blob = class Blob {
       constructor(parts?: any[], options?: { type?: string }) {
         // Minimal Blob implementation for QuickJS
         this.size = 0;
-        this.type = options?.type || '';
+        this.type = options?.type || "";
 
         if (parts) {
           for (const part of parts) {
-            if (typeof part === 'string') {
+            if (typeof part === "string") {
               this.size += part.length;
-            } else if (part && typeof part.length === 'number') {
+            } else if (part && typeof part.length === "number") {
               this.size += part.length;
             }
           }
@@ -505,13 +812,15 @@ export function applyCorePolyfills(): void {
         // Check constraints for large blobs
         if (constraintDetector && this.size > 100 * 1024) {
           const result = constraintDetector.checkOperation({
-            type: 'data',
-            size: this.size
+            type: "data",
+            size: this.size,
           });
-          
+
           if (!result.allowed) {
             // Warn about large blob but continue processing
-            debugWarn(`Blob: ${result.violations[0]?.message || 'Large blob created'}`);
+            debugWarn(
+              `Blob: ${result.violations[0]?.message || "Large blob created"}`,
+            );
           }
         }
       }
@@ -522,14 +831,14 @@ export function applyCorePolyfills(): void {
 
     if (constraintDetector) {
       constraintDetector.checkOperation({
-        type: 'api',
-        api: 'Blob'
+        type: "api",
+        api: "Blob",
       });
     }
   }
 
   // URL polyfill for QuickJS environments (needed by fflate compression)
-  if (typeof URL === 'undefined') {
+  if (typeof URL === "undefined") {
     (globalThis as any).URL = class URL {
       constructor(url: string, _base?: string) {
         this.href = url;
@@ -541,19 +850,19 @@ export function applyCorePolyfills(): void {
         // Return a fake object URL that won't be used in QuickJS
         if (constraintDetector) {
           constraintDetector.checkOperation({
-            type: 'api',
-            api: 'URL.createObjectURL'
+            type: "api",
+            api: "URL.createObjectURL",
           });
         }
-        return 'blob:fake-url-for-quickjs';
+        return "blob:fake-url-for-quickjs";
       }
 
       static revokeObjectURL(_url: string): void {
         // No-op for QuickJS compatibility
         if (constraintDetector) {
           constraintDetector.checkOperation({
-            type: 'api',
-            api: 'URL.revokeObjectURL'
+            type: "api",
+            api: "URL.revokeObjectURL",
           });
         }
       }
@@ -561,8 +870,8 @@ export function applyCorePolyfills(): void {
 
     if (constraintDetector) {
       constraintDetector.checkOperation({
-        type: 'api',
-        api: 'URL'
+        type: "api",
+        api: "URL",
       });
     }
   }
@@ -577,19 +886,25 @@ export function applyCorePolyfills(): void {
 export function markCorePolyfills(): void {
   if (
     (globalThis as any).performance &&
-    !(globalThis as any).performance.now.toString().includes('[native code]')
+    !(globalThis as any).performance.now.toString().includes("[native code]")
   ) {
     (globalThis as any).performance.__polyfilled = true;
   }
   if (
     (globalThis as any).TextEncoder &&
-    !(globalThis as any).TextEncoder.toString().includes('[native code]')
+    !(globalThis as any).TextEncoder.toString().includes("[native code]")
   ) {
     (globalThis as any).TextEncoder.__polyfilled = true;
   }
   if (
+    (globalThis as any).TextDecoder &&
+    !(globalThis as any).TextDecoder.toString().includes("[native code]")
+  ) {
+    (globalThis as any).TextDecoder.__polyfilled = true;
+  }
+  if (
     (globalThis as any).Buffer &&
-    typeof (globalThis as any).Buffer.byteLength === 'function'
+    typeof (globalThis as any).Buffer.byteLength === "function"
   ) {
     (globalThis as any).Buffer.__polyfilled = true;
   }
@@ -601,11 +916,13 @@ export function markCorePolyfills(): void {
 export function getAppliedPolyfills(): {
   performance: boolean;
   textEncoder: boolean;
+  textDecoder: boolean;
   buffer: boolean;
 } {
   return {
     performance: !!(globalThis as any).performance?.__polyfilled,
     textEncoder: !!(globalThis as any).TextEncoder?.__polyfilled,
+    textDecoder: !!(globalThis as any).TextDecoder?.__polyfilled,
     buffer: !!(globalThis as any).Buffer?.__polyfilled,
   };
 }
@@ -616,8 +933,9 @@ export function getAppliedPolyfills(): {
 export function isQuickJSEnvironment(): boolean {
   // Check for missing standard APIs that would indicate QuickJS
   return (
-    typeof performance === 'undefined' ||
-    typeof TextEncoder === 'undefined' ||
-    typeof (globalThis as any).Buffer === 'undefined'
+    typeof performance === "undefined" ||
+    typeof TextEncoder === "undefined" ||
+    typeof TextDecoder === "undefined" ||
+    typeof (globalThis as any).Buffer === "undefined"
   );
 }
