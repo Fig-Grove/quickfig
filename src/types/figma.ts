@@ -48,11 +48,11 @@ export interface FigmaAPI {
  * Basic node types from Figma API
  */
 export interface DocumentNode extends BaseNode {
-  readonly type: 'DOCUMENT';
+  readonly type: "DOCUMENT";
 }
 
 export interface PageNode extends BaseNode {
-  readonly type: 'PAGE';
+  readonly type: "PAGE";
   readonly children: readonly SceneNode[];
 }
 
@@ -77,5 +77,5 @@ export const FIGMA_CONSTRAINTS = {
   /**
    * UTF-8 encoding used for size calculations
    */
-  ENCODING: 'utf-8' as const,
+  ENCODING: "utf-8" as const,
 } as const;

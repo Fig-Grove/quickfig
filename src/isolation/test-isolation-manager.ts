@@ -1,6 +1,6 @@
 /**
  * Test Isolation Manager - Enhanced Test-to-Test Isolation
- * 
+ *
  * Provides comprehensive isolation between QuickJS tests to prevent
  * cross-contamination and ensure reliable test results.
  */
@@ -28,10 +28,10 @@ export interface IsolationReport {
 }
 
 export interface ContaminationReport {
-  type: 'global' | 'polyfill' | 'memory' | 'constraint';
+  type: "global" | "polyfill" | "memory" | "constraint";
   globalName?: string;
   contamination: string;
-  severity: 'low' | 'medium' | 'high';
+  severity: "low" | "medium" | "high";
   cleaned: boolean;
 }
 
@@ -43,12 +43,12 @@ export const DEFAULT_ISOLATION_CONFIG: TestIsolationConfig = {
   resetPolyfills: true,
   validateMemoryState: true,
   clearConstraintState: true,
-  resetTimingBaselines: true
+  resetTimingBaselines: true,
 };
 
 /**
  * Test Isolation Manager
- * 
+ *
  * Provides deterministic test isolation for QuickJS environment testing
  */
 export class TestIsolationManager {
@@ -66,18 +66,25 @@ export class TestIsolationManager {
   captureInitialState(): void {
     // Capture global state for comparison
     const polyfillableGlobals = [
-      'performance', 'TextEncoder', 'TextDecoder', 'Buffer', 
-      'Blob', 'URL', 'Worker', 'Set', 'Map'
+      "performance",
+      "TextEncoder",
+      "TextDecoder",
+      "Buffer",
+      "Blob",
+      "URL",
+      "Worker",
+      "Set",
+      "Map",
     ];
 
-    polyfillableGlobals.forEach(globalName => {
+    polyfillableGlobals.forEach((globalName) => {
       const globalObj = (globalThis as any)[globalName];
       if (globalObj) {
         this.globalStateSnapshot.set(globalName, {
           exists: true,
           isNative: this.isNativeImplementation(globalObj, globalName),
           isPolyfill: !!globalObj.__polyfilled,
-          signature: this.generateSignature(globalObj, globalName)
+          signature: this.generateSignature(globalObj, globalName),
         });
       } else {
         this.globalStateSnapshot.set(globalName, { exists: false });
@@ -95,7 +102,7 @@ export class TestIsolationManager {
       memoryValidated: false,
       constraintStateCleared: false,
       timingBaselinesReset: false,
-      contaminationDetected: []
+      contaminationDetected: [],
     };
 
     // 1. Detect and clean contaminated globals
@@ -129,7 +136,10 @@ export class TestIsolationManager {
     this.isolationReports.push(report);
     console.log(`🧹 Test isolation established for: ${testName}`);
     if (report.contaminationDetected.length > 0) {
-      console.warn(`⚠️ Contamination detected and cleaned:`, report.contaminationDetected);
+      console.warn(
+        `⚠️ Contamination detected and cleaned:`,
+        report.contaminationDetected,
+      );
     }
 
     return report;
@@ -138,25 +148,30 @@ export class TestIsolationManager {
   /**
    * Validate test environment after execution
    */
-  async validatePostTestState(testName: string): Promise<ContaminationReport[]> {
+  async validatePostTestState(
+    testName: string,
+  ): Promise<ContaminationReport[]> {
     const contamination: ContaminationReport[] = [];
 
     // Check for test-induced contamination
     const polyfillableGlobals = [
-      'performance', 'TextEncoder', 'TextDecoder', 'Buffer'
+      "performance",
+      "TextEncoder",
+      "TextDecoder",
+      "Buffer",
     ];
 
-    polyfillableGlobals.forEach(globalName => {
+    polyfillableGlobals.forEach((globalName) => {
       const globalObj = (globalThis as any)[globalName];
       const originalState = this.globalStateSnapshot.get(globalName);
 
       if (globalObj && this.isTestMock(globalObj, globalName)) {
         contamination.push({
-          type: 'global',
+          type: "global",
           globalName,
           contamination: `Test mock detected in ${globalName}`,
-          severity: 'high',
-          cleaned: false
+          severity: "high",
+          cleaned: false,
         });
       }
     });
@@ -171,25 +186,35 @@ export class TestIsolationManager {
   /**
    * Clean contaminated global objects
    */
-  private async cleanContaminatedGlobals(report: IsolationReport): Promise<void> {
+  private async cleanContaminatedGlobals(
+    report: IsolationReport,
+  ): Promise<void> {
     const polyfillableGlobals = [
-      'performance', 'TextEncoder', 'TextDecoder', 'Buffer', 
-      'Blob', 'URL', 'Worker'
+      "performance",
+      "TextEncoder",
+      "TextDecoder",
+      "Buffer",
+      "Blob",
+      "URL",
+      "Worker",
     ];
 
-    polyfillableGlobals.forEach(globalName => {
+    polyfillableGlobals.forEach((globalName) => {
       const globalObj = (globalThis as any)[globalName];
-      
+
       if (globalObj && this.shouldCleanGlobal(globalObj, globalName)) {
         // Detect contamination type
-        const contaminationType = this.detectContaminationType(globalObj, globalName);
-        
+        const contaminationType = this.detectContaminationType(
+          globalObj,
+          globalName,
+        );
+
         report.contaminationDetected.push({
-          type: 'global',
+          type: "global",
           globalName,
           contamination: contaminationType,
-          severity: 'high',
-          cleaned: true
+          severity: "high",
+          cleaned: true,
         });
 
         // Clean the global
@@ -205,11 +230,13 @@ export class TestIsolationManager {
   private async resetPolyfillState(report: IsolationReport): Promise<void> {
     try {
       // Dynamic import to avoid circular dependencies
-      const { resetPolyfillsForTesting } = await import('../polyfills/environment-polyfills-impl.js').catch(() => ({ resetPolyfillsForTesting: () => {} }));
+      const { resetPolyfillsForTesting } = await import(
+        "../polyfills/environment-polyfills-impl.js"
+      ).catch(() => ({ resetPolyfillsForTesting: () => {} }));
       resetPolyfillsForTesting();
       report.polyfillsReset = true;
     } catch (error) {
-      console.warn('Failed to reset polyfill state:', error);
+      console.warn("Failed to reset polyfill state:", error);
       report.polyfillsReset = false;
     }
   }
@@ -219,21 +246,22 @@ export class TestIsolationManager {
    */
   private async validateMemoryState(report: IsolationReport): Promise<void> {
     // Simple memory state validation
-    // In a real scenario, this could check for memory leaks, 
+    // In a real scenario, this could check for memory leaks,
     // large object retention, etc.
-    
+
     try {
       const memoryUsage = (performance as any).memory?.usedJSHeapSize || 0;
-      
+
       // Basic memory validation - could be enhanced with memory profiling
       report.memoryValidated = true;
-      
-      if (memoryUsage > 50 * 1024 * 1024) { // 50MB threshold
+
+      if (memoryUsage > 50 * 1024 * 1024) {
+        // 50MB threshold
         report.contaminationDetected.push({
-          type: 'memory',
+          type: "memory",
           contamination: `High memory usage detected: ${Math.round(memoryUsage / 1024 / 1024)}MB`,
-          severity: 'medium',
-          cleaned: false
+          severity: "medium",
+          cleaned: false,
         });
       }
     } catch (error) {
@@ -244,15 +272,19 @@ export class TestIsolationManager {
   /**
    * Clear constraint detector state
    */
-  private async clearConstraintDetectorState(report: IsolationReport): Promise<void> {
+  private async clearConstraintDetectorState(
+    report: IsolationReport,
+  ): Promise<void> {
     try {
       // Clear constraint detector global reference
       delete (globalThis as any).__figmaConstraintDetector;
-      
+
       // Reset any cached constraint violations
-      const { figmaConstraintDetector } = await import('../constraints/figma-constraint-detector.js').catch(() => ({ figmaConstraintDetector: { resetHistory: () => {} } }));
+      const { figmaConstraintDetector } = await import(
+        "../constraints/figma-constraint-detector.js"
+      ).catch(() => ({ figmaConstraintDetector: { resetHistory: () => {} } }));
       figmaConstraintDetector.resetHistory();
-      
+
       report.constraintStateCleared = true;
     } catch (error) {
       report.constraintStateCleared = false;
@@ -276,8 +308,13 @@ export class TestIsolationManager {
    */
   private async performFinalCleanup(report: IsolationReport): Promise<void> {
     // Clean up any remaining test artifacts
-    const testArtifacts = ['testFlag', 'TestMarker', 'customObject', 'testMarker'];
-    testArtifacts.forEach(artifact => {
+    const testArtifacts = [
+      "testFlag",
+      "TestMarker",
+      "customObject",
+      "testMarker",
+    ];
+    testArtifacts.forEach((artifact) => {
       if ((globalThis as any)[artifact] !== undefined) {
         delete (globalThis as any)[artifact];
       }
@@ -295,7 +332,9 @@ export class TestIsolationManager {
   private async ensureCleanPolyfills(report: IsolationReport): Promise<void> {
     try {
       // Force clean polyfill state by importing and re-applying
-      const { applyEnvironmentPolyfills } = await import('../polyfills/environment-polyfills-impl.js').catch(() => ({ applyEnvironmentPolyfills: () => {} }));
+      const { applyEnvironmentPolyfills } = await import(
+        "../polyfills/environment-polyfills-impl.js"
+      ).catch(() => ({ applyEnvironmentPolyfills: () => {} }));
       applyEnvironmentPolyfills();
     } catch (error) {
       // Fallback: manually apply clean polyfills
@@ -308,14 +347,14 @@ export class TestIsolationManager {
    */
   private applyCleanPolyfillsFallback(): void {
     // Apply minimal clean polyfills to ensure consistent state
-    if (typeof performance === 'undefined') {
+    if (typeof performance === "undefined") {
       (globalThis as any).performance = {
         now: () => Date.now(),
-        __polyfilled: true
+        __polyfilled: true,
       };
     }
 
-    if (typeof TextEncoder === 'undefined') {
+    if (typeof TextEncoder === "undefined") {
       (globalThis as any).TextEncoder = class TextEncoder {
         encode(input: string): Uint8Array {
           if (!input) return new Uint8Array(0);
@@ -334,13 +373,13 @@ export class TestIsolationManager {
       (globalThis as any).TextEncoder.__polyfilled = true;
     }
 
-    if (typeof (globalThis as any).Buffer === 'undefined') {
+    if (typeof (globalThis as any).Buffer === "undefined") {
       (globalThis as any).Buffer = {
         byteLength: (input: string): number => {
           if (!input) return 0;
           return new TextEncoder().encode(input).length;
         },
-        __polyfilled: true
+        __polyfilled: true,
       };
     }
   }
@@ -349,9 +388,11 @@ export class TestIsolationManager {
    * Check if global should be cleaned
    */
   private shouldCleanGlobal(globalObj: any, globalName: string): boolean {
-    return globalObj.__polyfilled || 
-           this.isTestMock(globalObj, globalName) ||
-           this.isContaminatedPolyfill(globalObj, globalName);
+    return (
+      globalObj.__polyfilled ||
+      this.isTestMock(globalObj, globalName) ||
+      this.isContaminatedPolyfill(globalObj, globalName)
+    );
   }
 
   /**
@@ -359,9 +400,9 @@ export class TestIsolationManager {
    */
   private isTestMock(globalObj: any, globalName: string): boolean {
     // Detect common test mock patterns
-    if (globalName === 'TextEncoder' && globalObj.prototype?.encode) {
+    if (globalName === "TextEncoder" && globalObj.prototype?.encode) {
       try {
-        const testResult = new globalObj().encode('');
+        const testResult = new globalObj().encode("");
         if (testResult instanceof Uint8Array && testResult.length === 6) {
           // The infamous "custom" bytes mock
           return true;
@@ -370,10 +411,10 @@ export class TestIsolationManager {
         return true;
       }
     }
-    
-    if (globalName === 'Buffer' && globalObj.byteLength) {
+
+    if (globalName === "Buffer" && globalObj.byteLength) {
       try {
-        const testResult = globalObj.byteLength('test');
+        const testResult = globalObj.byteLength("test");
         if (testResult === 999) {
           // Static mock value
           return true;
@@ -382,8 +423,8 @@ export class TestIsolationManager {
         return true;
       }
     }
-    
-    if (globalName === 'performance' && globalObj.now) {
+
+    if (globalName === "performance" && globalObj.now) {
       try {
         const testResult = globalObj.now();
         if (testResult === 42) {
@@ -394,7 +435,7 @@ export class TestIsolationManager {
         return true;
       }
     }
-    
+
     return false;
   }
 
@@ -424,7 +465,7 @@ export class TestIsolationManager {
    */
   private isNativeImplementation(globalObj: any, globalName: string): boolean {
     try {
-      return globalObj.toString().includes('[native code]');
+      return globalObj.toString().includes("[native code]");
     } catch (e) {
       return false;
     }
@@ -467,13 +508,17 @@ export const testIsolationManager = new TestIsolationManager();
 /**
  * Convenience function for test setup
  */
-export async function establishTestIsolation(testName: string): Promise<IsolationReport> {
+export async function establishTestIsolation(
+  testName: string,
+): Promise<IsolationReport> {
   return await testIsolationManager.establishCleanEnvironment(testName);
 }
 
 /**
  * Convenience function for test teardown
  */
-export async function validateTestCleanup(testName: string): Promise<ContaminationReport[]> {
+export async function validateTestCleanup(
+  testName: string,
+): Promise<ContaminationReport[]> {
   return await testIsolationManager.validatePostTestState(testName);
 }

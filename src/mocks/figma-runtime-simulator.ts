@@ -1,6 +1,6 @@
 /**
  * Figma Runtime Simulator - Core Implementation
- * 
+ *
  * Simulates Figma's QuickJS environment constraints for behavioral compliance testing.
  * Provides comprehensive constraint checking and polyfill validation.
  */
@@ -11,16 +11,16 @@
 export interface FigmaRuntimeConstraints {
   /** Hard execution limit - Figma kills operations after this */
   maxExecutionTime: number;
-  
+
   /** UI blocking threshold - operations should complete faster than this */
   uiBlockingThreshold: number;
-  
+
   /** Conservative memory limit per operation */
   maxMemoryPerOperation: number;
-  
+
   /** Maximum string size (estimated from Figma constraints) */
   maxStringSize: number;
-  
+
   /** Maximum stack depth for recursion */
   maxStackDepth: number;
 }
@@ -40,48 +40,48 @@ export const FIGMA_RUNTIME_CONSTRAINTS: FigmaRuntimeConstraints = {
  * APIs that are blocked in Figma's QuickJS environment
  */
 export const BLOCKED_APIS = [
-  'setTimeout',
-  'setInterval',
-  'clearTimeout',
-  'clearInterval',
-  'Worker',
-  'SharedWorker',
-  'ServiceWorker',
-  'eval',
-  'Function',
-  'WebAssembly',
-  'XMLHttpRequest',
-  'fetch',
-  'CompressionStream',
-  'DecompressionStream',
-  'localStorage',
-  'sessionStorage',
-  'indexedDB',
-  'crypto',
-  'SubtleCrypto',
+  "setTimeout",
+  "setInterval",
+  "clearTimeout",
+  "clearInterval",
+  "Worker",
+  "SharedWorker",
+  "ServiceWorker",
+  "eval",
+  "Function",
+  "WebAssembly",
+  "XMLHttpRequest",
+  "fetch",
+  "CompressionStream",
+  "DecompressionStream",
+  "localStorage",
+  "sessionStorage",
+  "indexedDB",
+  "crypto",
+  "SubtleCrypto",
 ] as const;
 
 /**
  * APIs that are available in Figma's QuickJS environment
  */
 export const AVAILABLE_APIS = [
-  'console',
-  'performance',
-  'Date',
-  'Math',
-  'JSON',
-  'Object',
-  'Array',
-  'String',
-  'Number',
-  'Boolean',
-  'RegExp',
-  'Error',
-  'Promise',
-  'Set',
-  'Map',
-  'WeakSet',
-  'WeakMap',
+  "console",
+  "performance",
+  "Date",
+  "Math",
+  "JSON",
+  "Object",
+  "Array",
+  "String",
+  "Number",
+  "Boolean",
+  "RegExp",
+  "Error",
+  "Promise",
+  "Set",
+  "Map",
+  "WeakSet",
+  "WeakMap",
 ] as const;
 
 /**
@@ -90,17 +90,17 @@ export const AVAILABLE_APIS = [
 export interface FigmaRuntimeResult<T = any> {
   /** Whether execution succeeded */
   success: boolean;
-  
+
   /** Result data if successful */
   data?: T;
-  
+
   /** Error information if failed */
   error?: {
-    type: 'timeout' | 'memory' | 'api_blocked' | 'execution' | 'constraint';
+    type: "timeout" | "memory" | "api_blocked" | "execution" | "constraint";
     message: string;
     details?: any;
   };
-  
+
   /** Performance metrics */
   metrics: {
     executionTime: number;
@@ -157,7 +157,9 @@ export class FigmaRuntimeSimulator {
   private constraints: FigmaRuntimeConstraints;
   private memoryTracker: MemoryTracker;
 
-  constructor(constraints: FigmaRuntimeConstraints = FIGMA_RUNTIME_CONSTRAINTS) {
+  constructor(
+    constraints: FigmaRuntimeConstraints = FIGMA_RUNTIME_CONSTRAINTS,
+  ) {
     this.constraints = constraints;
     this.memoryTracker = new MemoryTracker(constraints.maxMemoryPerOperation);
   }
@@ -167,7 +169,7 @@ export class FigmaRuntimeSimulator {
    */
   async runInFigmaEnvironment<T = any>(
     code: string,
-    context: Record<string, any> = {}
+    context: Record<string, any> = {},
   ): Promise<FigmaRuntimeResult<T>> {
     const startTime = performance.now();
     const constraintViolations: string[] = [];
@@ -186,14 +188,17 @@ export class FigmaRuntimeSimulator {
       const result = await this.executeWithConstraints(
         code,
         constrainedEnvironment,
-        constraintViolations
+        constraintViolations,
       );
 
       const executionTime = performance.now() - startTime;
       const memoryUsage = this.memoryTracker.getUsage();
 
       // Post-execution constraint validation
-      this.validatePostExecutionConstraints(executionTime, constraintViolations);
+      this.validatePostExecutionConstraints(
+        executionTime,
+        constraintViolations,
+      );
 
       return {
         success: true,
@@ -227,13 +232,15 @@ export class FigmaRuntimeSimulator {
    */
   private async validatePreExecutionConstraints(
     code: string,
-    violations: string[]
+    violations: string[],
   ): Promise<void> {
     // Check code size against memory constraints
     const codeSize = new TextEncoder().encode(code).length;
     if (codeSize > this.constraints.maxStringSize) {
-      violations.push(`Code size ${codeSize} exceeds max string size ${this.constraints.maxStringSize}`);
-      throw new Error('Code size exceeds memory limit');
+      violations.push(
+        `Code size ${codeSize} exceeds max string size ${this.constraints.maxStringSize}`,
+      );
+      throw new Error("Code size exceeds memory limit");
     }
 
     // Check for blocked APIs
@@ -245,30 +252,32 @@ export class FigmaRuntimeSimulator {
 
     // Memory allocation for code
     if (!this.memoryTracker.allocate(codeSize)) {
-      throw new Error('Code size exceeds memory limit');
+      throw new Error("Code size exceeds memory limit");
     }
   }
 
   /**
    * Create execution environment with Figma constraints
    */
-  private createConstrainedEnvironment(context: Record<string, any>): Record<string, any> {
+  private createConstrainedEnvironment(
+    context: Record<string, any>,
+  ): Record<string, any> {
     const environment: Record<string, any> = {
       // Mock Figma global object
       figma: {
-        currentPage: { name: 'Test Page' },
-        root: { type: 'DOCUMENT' },
+        currentPage: { name: "Test Page" },
+        root: { type: "DOCUMENT" },
         // Add minimal Figma API simulation
       },
 
       // Available APIs (limited subset)
       console: {
         // eslint-disable-next-line no-console
-        log: (...args: any[]) => console.log('[Figma]:', ...args),
+        log: (...args: any[]) => console.log("[Figma]:", ...args),
         // eslint-disable-next-line no-console
-        error: (...args: any[]) => console.error('[Figma Error]:', ...args),
+        error: (...args: any[]) => console.error("[Figma Error]:", ...args),
         // eslint-disable-next-line no-console
-        warn: (...args: any[]) => console.warn('[Figma Warning]:', ...args),
+        warn: (...args: any[]) => console.warn("[Figma Warning]:", ...args),
       },
 
       // Performance API (limited)
@@ -319,7 +328,12 @@ export class FigmaRuntimeSimulator {
       private _error: any;
       private _resolved: boolean = false;
 
-      constructor(executor: (resolve: (value: T) => void, reject: (reason: any) => void) => void) {
+      constructor(
+        executor: (
+          resolve: (value: T) => void,
+          reject: (reason: any) => void,
+        ) => void,
+      ) {
         try {
           executor(
             (value: T) => {
@@ -329,7 +343,7 @@ export class FigmaRuntimeSimulator {
             (reason: any) => {
               this._rejected = true;
               this._error = reason;
-            }
+            },
           );
         } catch (error) {
           this._rejected = true;
@@ -339,7 +353,7 @@ export class FigmaRuntimeSimulator {
 
       then<TResult1 = T, TResult2 = never>(
         onfulfilled?: ((value: T) => TResult1) | null,
-        onrejected?: ((reason: any) => TResult2) | null
+        onrejected?: ((reason: any) => TResult2) | null,
       ): SyncPromise<TResult1 | TResult2> {
         return new SyncPromise<TResult1 | TResult2>((resolve, reject) => {
           if (this._rejected) {
@@ -367,7 +381,7 @@ export class FigmaRuntimeSimulator {
       }
 
       catch<TResult = never>(
-        onrejected?: ((reason: any) => TResult) | null
+        onrejected?: ((reason: any) => TResult) | null,
       ): SyncPromise<T | TResult> {
         return this.then(null, onrejected);
       }
@@ -388,19 +402,23 @@ export class FigmaRuntimeSimulator {
   private async executeWithConstraints<T>(
     code: string,
     environment: Record<string, any>,
-    _violations: string[]
+    _violations: string[],
   ): Promise<T> {
     return new Promise((resolve, reject) => {
       // Set up timeout enforcement
       const timeoutId = setTimeout(() => {
-        reject(new Error(`Execution timeout: exceeded ${this.constraints.maxExecutionTime}ms`));
+        reject(
+          new Error(
+            `Execution timeout: exceeded ${this.constraints.maxExecutionTime}ms`,
+          ),
+        );
       }, this.constraints.maxExecutionTime);
 
       try {
         // Create function with constrained environment
         const keys = Object.keys(environment);
         const values = Object.values(environment);
-        
+
         // Wrap code to ensure it returns a value
         const wrappedCode = `
           try {
@@ -409,12 +427,12 @@ export class FigmaRuntimeSimulator {
             throw error;
           }
         `;
-        
+
         const func = new Function(...keys, wrappedCode);
 
-        // Execute 
+        // Execute
         const result = func(...values) as T;
-        
+
         clearTimeout(timeoutId);
         resolve(result);
       } catch (error) {
@@ -429,41 +447,67 @@ export class FigmaRuntimeSimulator {
    */
   private validatePostExecutionConstraints(
     executionTime: number,
-    violations: string[]
+    violations: string[],
   ): void {
     if (executionTime > this.constraints.uiBlockingThreshold) {
-      violations.push(`Execution time ${executionTime}ms exceeds UI blocking threshold ${this.constraints.uiBlockingThreshold}ms`);
+      violations.push(
+        `Execution time ${executionTime}ms exceeds UI blocking threshold ${this.constraints.uiBlockingThreshold}ms`,
+      );
     }
 
     const memoryUsage = this.memoryTracker.getUsage();
     if (memoryUsage.peak > this.constraints.maxMemoryPerOperation * 0.8) {
-      violations.push(`Memory usage ${memoryUsage.peak} approaching limit ${this.constraints.maxMemoryPerOperation}`);
+      violations.push(
+        `Memory usage ${memoryUsage.peak} approaching limit ${this.constraints.maxMemoryPerOperation}`,
+      );
     }
   }
 
   /**
    * Categorize execution errors
    */
-  private categorizeError(error: any): { type: 'timeout' | 'memory' | 'api_blocked' | 'execution' | 'constraint'; message: string; details?: any } {
+  private categorizeError(error: any): {
+    type: "timeout" | "memory" | "api_blocked" | "execution" | "constraint";
+    message: string;
+    details?: any;
+  } {
     const message = error instanceof Error ? error.message : String(error);
 
-    if (message.includes('timeout') || message.includes('Execution timeout')) {
-      return { type: 'timeout', message, details: { limit: this.constraints.maxExecutionTime } };
+    if (message.includes("timeout") || message.includes("Execution timeout")) {
+      return {
+        type: "timeout",
+        message,
+        details: { limit: this.constraints.maxExecutionTime },
+      };
     }
 
-    if (message.includes('memory') || message.includes('exceeds memory limit')) {
-      return { type: 'memory', message, details: { limit: this.constraints.maxMemoryPerOperation } };
+    if (
+      message.includes("memory") ||
+      message.includes("exceeds memory limit")
+    ) {
+      return {
+        type: "memory",
+        message,
+        details: { limit: this.constraints.maxMemoryPerOperation },
+      };
     }
 
-    if (message.includes('blocked API') || BLOCKED_APIS.some(api => message.includes(api))) {
-      return { type: 'api_blocked', message };
+    if (
+      message.includes("blocked API") ||
+      BLOCKED_APIS.some((api) => message.includes(api))
+    ) {
+      return { type: "api_blocked", message };
     }
 
-    if (message.includes('Stack overflow') || message.includes('stack')) {
-      return { type: 'constraint', message, details: { type: 'stack_overflow' } };
+    if (message.includes("Stack overflow") || message.includes("stack")) {
+      return {
+        type: "constraint",
+        message,
+        details: { type: "stack_overflow" },
+      };
     }
 
-    return { type: 'execution', message };
+    return { type: "execution", message };
   }
 
   /**
@@ -478,7 +522,9 @@ export class FigmaRuntimeSimulator {
    */
   updateConstraints(newConstraints: Partial<FigmaRuntimeConstraints>): void {
     this.constraints = { ...this.constraints, ...newConstraints };
-    this.memoryTracker = new MemoryTracker(this.constraints.maxMemoryPerOperation);
+    this.memoryTracker = new MemoryTracker(
+      this.constraints.maxMemoryPerOperation,
+    );
   }
 }
 
@@ -492,7 +538,7 @@ export const figmaRuntimeSimulator = new FigmaRuntimeSimulator();
  */
 export async function runInFigmaEnvironment<T = any>(
   code: string,
-  context?: Record<string, any>
+  context?: Record<string, any>,
 ): Promise<FigmaRuntimeResult<T>> {
   return figmaRuntimeSimulator.runInFigmaEnvironment<T>(code, context);
 }

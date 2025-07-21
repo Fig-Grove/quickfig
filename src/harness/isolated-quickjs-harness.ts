@@ -1,12 +1,20 @@
 /**
- * Isolated QuickJS Test Harness - Enhanced Test Environment 
- * 
+ * Isolated QuickJS Test Harness - Enhanced Test Environment
+ *
  * Enhanced test harness with comprehensive test-to-test isolation
  * for reliable QuickJS environment testing.
  */
 
-import { testIsolationManager, TestIsolationConfig, IsolationReport } from '../isolation/test-isolation-manager.js';
-import { MockQuickJSEnvironment, MockSandboxResult, FIGMA_SANDBOX_CONFIG } from '../mocks/mock-quickjs-harness.js';
+import {
+  testIsolationManager,
+  TestIsolationConfig,
+  IsolationReport,
+} from "../isolation/test-isolation-manager.js";
+import {
+  MockQuickJSEnvironment,
+  MockSandboxResult,
+  FIGMA_SANDBOX_CONFIG,
+} from "../mocks/mock-quickjs-harness.js";
 
 export interface IsolatedTestConfig extends TestIsolationConfig {
   /** Test name for isolation reporting */
@@ -27,7 +35,7 @@ export interface IsolatedTestResult<T = any> extends MockSandboxResult<T> {
 
 /**
  * Isolated QuickJS Test Environment
- * 
+ *
  * Provides guaranteed isolation between test executions
  */
 export class IsolatedQuickJSEnvironment {
@@ -37,7 +45,7 @@ export class IsolatedQuickJSEnvironment {
   constructor(config: IsolatedTestConfig) {
     this.config = config;
     this.mockEnv = new MockQuickJSEnvironment(
-      config.sandboxConfig || FIGMA_SANDBOX_CONFIG
+      config.sandboxConfig || FIGMA_SANDBOX_CONFIG,
     );
   }
 
@@ -47,7 +55,7 @@ export class IsolatedQuickJSEnvironment {
   async runSandboxed<T = any>(code: string): Promise<IsolatedTestResult<T>> {
     // Step 1: Establish clean test environment
     const preTestReport = await testIsolationManager.establishCleanEnvironment(
-      this.config.testName
+      this.config.testName,
     );
 
     if (this.config.verboseLogging) {
@@ -61,7 +69,7 @@ export class IsolatedQuickJSEnvironment {
     try {
       // Step 2: Create a fresh mock environment for this test
       this.mockEnv = new MockQuickJSEnvironment(
-        this.config.sandboxConfig || FIGMA_SANDBOX_CONFIG
+        this.config.sandboxConfig || FIGMA_SANDBOX_CONFIG,
       );
 
       // Step 3: Execute the test code in the fresh isolated environment
@@ -69,24 +77,23 @@ export class IsolatedQuickJSEnvironment {
 
       // Step 4: Validate post-test state
       postTestContamination = await testIsolationManager.validatePostTestState(
-        this.config.testName
+        this.config.testName,
       );
 
       // Step 5: Clean up post-test contamination immediately
       await this.cleanupPostTestContamination();
-
     } catch (error) {
       // Handle execution errors while maintaining isolation
       sandboxResult = {
         ok: false,
         data: null as T,
         error: error instanceof Error ? error.message : String(error),
-        executionTime: 0
+        executionTime: 0,
       };
 
       // Still validate post-test state even on error
       postTestContamination = await testIsolationManager.validatePostTestState(
-        this.config.testName
+        this.config.testName,
       );
 
       // Clean up even on error
@@ -95,13 +102,18 @@ export class IsolatedQuickJSEnvironment {
 
     // Step 6: Determine isolation success
     // Success means: pre-test contamination was cleaned + no post-test contamination
-    const preTestCleanedSuccessfully = preTestReport.contaminationDetected.every(c => c.cleaned);
+    const preTestCleanedSuccessfully =
+      preTestReport.contaminationDetected.every((c) => c.cleaned);
     const noPostTestContamination = postTestContamination.length === 0;
-    const isolationSuccessful = preTestCleanedSuccessfully && noPostTestContamination;
+    const isolationSuccessful =
+      preTestCleanedSuccessfully && noPostTestContamination;
 
     if (!isolationSuccessful && this.config.verboseLogging) {
       console.warn(`⚠️ Isolation issues in test: ${this.config.testName}`);
-      console.warn(`Pre-test contamination:`, preTestReport.contaminationDetected);
+      console.warn(
+        `Pre-test contamination:`,
+        preTestReport.contaminationDetected,
+      );
       console.warn(`Post-test contamination:`, postTestContamination);
     }
 
@@ -110,8 +122,8 @@ export class IsolatedQuickJSEnvironment {
       isolation: {
         preTestReport,
         postTestContamination,
-        isolationSuccessful
-      }
+        isolationSuccessful,
+      },
     };
   }
 
@@ -121,21 +133,30 @@ export class IsolatedQuickJSEnvironment {
   private async cleanupPostTestContamination(): Promise<void> {
     // Aggressively clean up any test artifacts
     const allPossibleArtifacts = [
-      'testFlag', 'TestMarker', 'customObject', 'testMarker',
-      'contaminated', 'executed', 'marker', 'foundPrevious'
+      "testFlag",
+      "TestMarker",
+      "customObject",
+      "testMarker",
+      "contaminated",
+      "executed",
+      "marker",
+      "foundPrevious",
     ];
-    
-    allPossibleArtifacts.forEach(artifact => {
+
+    allPossibleArtifacts.forEach((artifact) => {
       if ((globalThis as any)[artifact] !== undefined) {
         delete (globalThis as any)[artifact];
       }
     });
 
     // Reset any contaminated polyfills
-    const polyfillsToCheck = ['TextEncoder', 'Buffer', 'performance'];
-    polyfillsToCheck.forEach(polyfillName => {
+    const polyfillsToCheck = ["TextEncoder", "Buffer", "performance"];
+    polyfillsToCheck.forEach((polyfillName) => {
       const polyfillObj = (globalThis as any)[polyfillName];
-      if (polyfillObj && this.isContaminatedPolyfill(polyfillObj, polyfillName)) {
+      if (
+        polyfillObj &&
+        this.isContaminatedPolyfill(polyfillObj, polyfillName)
+      ) {
         delete (globalThis as any)[polyfillName];
       }
     });
@@ -144,11 +165,14 @@ export class IsolatedQuickJSEnvironment {
   /**
    * Check if a polyfill is contaminated by test execution
    */
-  private isContaminatedPolyfill(polyfillObj: any, polyfillName: string): boolean {
+  private isContaminatedPolyfill(
+    polyfillObj: any,
+    polyfillName: string,
+  ): boolean {
     // Detect test-created contamination
-    if (polyfillName === 'TextEncoder' && polyfillObj.prototype?.encode) {
+    if (polyfillName === "TextEncoder" && polyfillObj.prototype?.encode) {
       try {
-        const testResult = new polyfillObj().encode('');
+        const testResult = new polyfillObj().encode("");
         if (testResult instanceof Uint8Array && testResult.length === 6) {
           return true; // "custom" bytes contamination
         }
@@ -156,10 +180,10 @@ export class IsolatedQuickJSEnvironment {
         return true;
       }
     }
-    
-    if (polyfillName === 'Buffer' && polyfillObj.byteLength) {
+
+    if (polyfillName === "Buffer" && polyfillObj.byteLength) {
       try {
-        const testResult = polyfillObj.byteLength('test');
+        const testResult = polyfillObj.byteLength("test");
         if (testResult === 999) {
           return true; // Static mock contamination
         }
@@ -167,8 +191,8 @@ export class IsolatedQuickJSEnvironment {
         return true;
       }
     }
-    
-    if (polyfillName === 'performance' && polyfillObj.now) {
+
+    if (polyfillName === "performance" && polyfillObj.now) {
       try {
         const testResult = polyfillObj.now();
         if (testResult === 12345) {
@@ -178,7 +202,7 @@ export class IsolatedQuickJSEnvironment {
         return true;
       }
     }
-    
+
     return false;
   }
 
@@ -202,7 +226,7 @@ export class IsolatedQuickJSEnvironment {
  */
 export async function createIsolatedFigmaTestEnvironment(
   testName: string,
-  customConfig?: Partial<IsolatedTestConfig>
+  customConfig?: Partial<IsolatedTestConfig>,
 ): Promise<IsolatedQuickJSEnvironment> {
   const config: IsolatedTestConfig = {
     testName,
@@ -212,7 +236,7 @@ export async function createIsolatedFigmaTestEnvironment(
     clearConstraintState: true,
     resetTimingBaselines: true,
     verboseLogging: false,
-    ...customConfig
+    ...customConfig,
   };
 
   return new IsolatedQuickJSEnvironment(config);
@@ -224,9 +248,12 @@ export async function createIsolatedFigmaTestEnvironment(
 export async function runIsolatedTest<T = any>(
   testName: string,
   code: string,
-  config?: Partial<IsolatedTestConfig>
+  config?: Partial<IsolatedTestConfig>,
 ): Promise<IsolatedTestResult<T>> {
-  const isolatedEnv = await createIsolatedFigmaTestEnvironment(testName, config);
+  const isolatedEnv = await createIsolatedFigmaTestEnvironment(
+    testName,
+    config,
+  );
   return await isolatedEnv.runSandboxed<T>(code);
 }
 
@@ -234,7 +261,11 @@ export async function runIsolatedTest<T = any>(
  * Batch test runner with isolation between each test
  */
 export async function runIsolatedTestBatch(
-  tests: Array<{ name: string; code: string; config?: Partial<IsolatedTestConfig> }>
+  tests: Array<{
+    name: string;
+    code: string;
+    config?: Partial<IsolatedTestConfig>;
+  }>,
 ): Promise<Array<{ name: string; result: IsolatedTestResult }>> {
   const results: Array<{ name: string; result: IsolatedTestResult }> = [];
 
@@ -243,7 +274,7 @@ export async function runIsolatedTestBatch(
     results.push({ name: test.name, result });
 
     // Brief pause between tests to ensure complete isolation
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
   }
 
   return results;
@@ -257,7 +288,7 @@ export async function validateIsolationSystem(): Promise<{
   report: string[];
 }> {
   const report: string[] = [];
-  
+
   // Test 1: Create contamination
   // TEMPORARILY DISABLED: This test is causing global contamination in other tests
   // TODO: Re-enable once proper isolation is implemented
@@ -283,12 +314,12 @@ export async function validateIsolationSystem(): Promise<{
     report.push('❌ Contamination test failed to execute');
   }
   */
-  report.push('⚠️ Test 1: Contamination test temporarily disabled');
+  report.push("⚠️ Test 1: Contamination test temporarily disabled");
 
   // Test 2: Verify isolation cleaned up contamination
-  report.push('🧪 Test 2: Verifying contamination cleanup...');
+  report.push("🧪 Test 2: Verifying contamination cleanup...");
   const cleanupTest = await runIsolatedTest(
-    'cleanup-verification-test',
+    "cleanup-verification-test",
     `
       // Check if contamination was cleaned up
       const textEncoderResult = typeof TextEncoder !== 'undefined' ? 
@@ -302,30 +333,32 @@ export async function validateIsolationSystem(): Promise<{
         contaminationDetected: textEncoderResult === [99, 117, 115, 116, 111, 109] || bufferResult === 999
       };
     `,
-    { verboseLogging: true }
+    { verboseLogging: true },
   );
 
   if (cleanupTest.ok && cleanupTest.data) {
     if (cleanupTest.data.contaminationDetected) {
-      report.push('❌ Contamination still present - isolation system not working');
+      report.push(
+        "❌ Contamination still present - isolation system not working",
+      );
       return { isolationWorking: false, report };
     } else {
-      report.push('✅ Contamination cleaned up successfully');
+      report.push("✅ Contamination cleaned up successfully");
     }
   }
 
   // Test 3: Verify multiple test isolation
-  report.push('🧪 Test 3: Testing multiple test isolation...');
+  report.push("🧪 Test 3: Testing multiple test isolation...");
   const multiTestResults = await runIsolatedTestBatch([
     {
-      name: 'test-a',
+      name: "test-a",
       code: `
         globalThis.testMarker = 'test-a';
         return { marker: globalThis.testMarker };
-      `
+      `,
     },
     {
-      name: 'test-b', 
+      name: "test-b",
       code: `
         const previousMarker = globalThis.testMarker;
         globalThis.testMarker = 'test-b';
@@ -333,22 +366,26 @@ export async function validateIsolationSystem(): Promise<{
           marker: globalThis.testMarker,
           foundPrevious: previousMarker === 'test-a'
         };
-      `
-    }
+      `,
+    },
   ]);
 
-  const testBIsolated = multiTestResults[1]?.result?.data?.foundPrevious === false;
+  const testBIsolated =
+    multiTestResults[1]?.result?.data?.foundPrevious === false;
   if (testBIsolated) {
-    report.push('✅ Multiple test isolation working correctly');
+    report.push("✅ Multiple test isolation working correctly");
   } else {
-    report.push('❌ Multiple test isolation failed - state leaked between tests');
+    report.push(
+      "❌ Multiple test isolation failed - state leaked between tests",
+    );
   }
 
-  const isolationWorking = cleanupTest.ok && 
-                          !cleanupTest.data?.contaminationDetected &&
-                          testBIsolated;
+  const isolationWorking =
+    cleanupTest.ok && !cleanupTest.data?.contaminationDetected && testBIsolated;
 
-  report.push(`\n🎯 Overall isolation system status: ${isolationWorking ? '✅ WORKING' : '❌ FAILED'}`);
+  report.push(
+    `\n🎯 Overall isolation system status: ${isolationWorking ? "✅ WORKING" : "❌ FAILED"}`,
+  );
 
   return { isolationWorking, report };
 }

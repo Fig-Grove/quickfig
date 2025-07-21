@@ -39,7 +39,7 @@ export function forcePolyfillReapplication() {
 }
 
 export async function withIsolatedPolyfills<T>(
-  fn: () => T | Promise<T>
+  fn: () => T | Promise<T>,
 ): Promise<T> {
   const savedState = saveGlobalState();
   try {
@@ -47,11 +47,13 @@ export async function withIsolatedPolyfills<T>(
     clearPolyfills();
 
     // Re-import polyfills fresh
-    const { applyEnvironmentPolyfills } = await import('../../../src/utils/environment-polyfills.ts');
-    
+    const { applyEnvironmentPolyfills } = await import(
+      "../../../src/utils/environment-polyfills.ts"
+    );
+
     // Force re-application of polyfills
     forcePolyfillReapplication();
-    
+
     // Apply polyfills
     applyEnvironmentPolyfills();
 

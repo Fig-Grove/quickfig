@@ -12,7 +12,7 @@ export async function createPerformanceBenchmark(testName: string) {
   return {
     testName,
     start: performance.now(),
-    end: () => performance.now()
+    end: () => performance.now(),
   };
 }
 
@@ -21,6 +21,6 @@ export async function validateUIBlockingConstraints(duration: number) {
   return {
     compliant: duration <= threshold,
     duration,
-    threshold
+    threshold,
   };
 }

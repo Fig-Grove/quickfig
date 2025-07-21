@@ -1,10 +1,10 @@
 /**
  * Polyfill Budget Manager
- * 
+ *
  * Implements 16ms UI budget enforcement for all polyfill operations.
- * Ensures polyfills respect Frame Rate constraints and automatically yield 
+ * Ensures polyfills respect Frame Rate constraints and automatically yield
  * for expensive operations.
- * 
+ *
  * Key Features:
  * - Automatic yielding for expensive polyfill fallbacks
  * - Performance impact monitoring per polyfill
@@ -12,7 +12,10 @@
  * - Integration with performance budget system
  */
 
-import type { FigmaPerformanceOptimizer, PolyfillOperation } from '../types/performance-types.js';
+import type {
+  FigmaPerformanceOptimizer,
+  PolyfillOperation,
+} from "../types/performance-types.js";
 
 /**
  * Budget allocation strategy for polyfill operations
@@ -22,7 +25,7 @@ export interface BudgetAllocation {
   allocated: number; // ms
   used: number; // ms
   remaining: number; // ms
-  priority: 'high' | 'medium' | 'low';
+  priority: "high" | "medium" | "low";
   yielded: boolean;
 }
 
@@ -65,7 +68,7 @@ export interface BudgetEnforcementConfig {
 
 /**
  * Polyfill Budget Manager
- * 
+ *
  * Manages UI budget allocation and enforcement for polyfill operations
  * to ensure 60fps performance and responsive user experience.
  */
@@ -78,8 +81,12 @@ export class PolyfillBudgetManager {
   private activeOperations: Map<string, BudgetAllocation> = new Map();
   private monitoringState: BudgetMonitoringState;
   private budgetHistory: number[] = [];
-  private violationHistory: Array<{ timestamp: number; operation: string; overrun: number }> = [];
-  
+  private violationHistory: Array<{
+    timestamp: number;
+    operation: string;
+    overrun: number;
+  }> = [];
+
   private readonly maxHistorySize = 100;
   private readonly budgetResetInterval = 16; // 16ms frame interval
   private isTestEnvironment = false;
@@ -93,12 +100,12 @@ export class PolyfillBudgetManager {
       yieldDuration: 0, // Yield to next tick
       enablePredictiveYielding: true,
       enableAdaptiveBudgeting: true,
-      ...config
+      ...config,
     };
-    
+
     this.currentBudget = this.config.totalBudget;
     this.budgetStartTime = performance.now();
-    
+
     this.monitoringState = {
       currentBudget: this.config.totalBudget,
       totalBudget: this.config.totalBudget,
@@ -106,12 +113,13 @@ export class PolyfillBudgetManager {
       violationCount: 0,
       yieldEvents: 0,
       averageOperationTime: 0,
-      worstCaseOperationTime: 0
+      worstCaseOperationTime: 0,
     };
-    
+
     // Detect test environment for timer management
-    this.isTestEnvironment = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
-    
+    this.isTestEnvironment =
+      typeof process !== "undefined" && process.env.NODE_ENV === "test";
+
     this.startBudgetMonitoring();
   }
 
@@ -120,10 +128,10 @@ export class PolyfillBudgetManager {
    */
   integrateWithPerformanceSystem(optimizer: FigmaPerformanceOptimizer): void {
     this.performanceOptimizer = optimizer;
-    
+
     // Sync budget with performance system
     this.syncBudgetWithPerformanceSystem();
-    
+
     // Set up performance monitoring integration
     this.setupPerformanceSystemIntegration();
   }
@@ -132,43 +140,46 @@ export class PolyfillBudgetManager {
    * Check if operation can proceed within budget
    */
   canProceedWithBudget(operation: PolyfillOperation): BudgetEnforcementResult {
-    const estimatedTime = (operation as any).estimatedDuration || (operation as any).estimatedTime || 5;
+    const estimatedTime =
+      (operation as any).estimatedDuration ||
+      (operation as any).estimatedTime ||
+      5;
     const currentTime = performance.now();
     const elapsedTime = currentTime - this.budgetStartTime;
     const remainingBudget = Math.max(0, this.config.totalBudget - elapsedTime);
-    
+
     // Check if operation fits within remaining budget
     if (estimatedTime <= remainingBudget) {
       return {
         allowed: true,
-        budgetRemaining: remainingBudget - estimatedTime
+        budgetRemaining: remainingBudget - estimatedTime,
       };
     }
-    
+
     // Check if we can yield and defer
     if (remainingBudget < this.config.yieldThreshold) {
       return {
         allowed: false,
-        reason: 'Insufficient budget, yielding required',
+        reason: "Insufficient budget, yielding required",
         suggestedDelay: this.calculateYieldDelay(estimatedTime),
         alternativeStrategy: this.suggestAlternativeStrategy(operation),
-        budgetRemaining: remainingBudget
+        budgetRemaining: remainingBudget,
       };
     }
-    
+
     // Check if we need to chunk the operation
     if (estimatedTime > this.config.yieldThreshold) {
       return {
         allowed: false,
-        reason: 'Operation too expensive, chunking required',
-        alternativeStrategy: 'chunked-execution',
-        budgetRemaining: remainingBudget
+        reason: "Operation too expensive, chunking required",
+        alternativeStrategy: "chunked-execution",
+        budgetRemaining: remainingBudget,
       };
     }
-    
+
     return {
       allowed: true,
-      budgetRemaining: remainingBudget - estimatedTime
+      budgetRemaining: remainingBudget - estimatedTime,
     };
   }
 
@@ -177,28 +188,32 @@ export class PolyfillBudgetManager {
    */
   async executeWithBudgetEnforcement<T>(
     operation: PolyfillOperation,
-    executor: () => Promise<T> | T
+    executor: () => Promise<T> | T,
   ): Promise<T> {
     const startTime = performance.now();
-    
+
     // Check budget before execution
     const budgetCheck = this.canProceedWithBudget(operation);
     if (!budgetCheck.allowed) {
       // Handle budget violation
       return this.handleBudgetViolation(operation, executor);
     }
-    
+
     // Allocate budget for operation
     const allocation = this.allocateBudget(operation);
-    
+
     try {
       // Execute operation with monitoring
-      const result = await this.monitoredExecution(operation, executor, allocation);
-      
+      const result = await this.monitoredExecution(
+        operation,
+        executor,
+        allocation,
+      );
+
       // Update budget usage
       const executionTime = performance.now() - startTime;
       this.updateBudgetUsage(operation, executionTime);
-      
+
       return result;
     } catch (error) {
       // Handle execution error
@@ -207,22 +222,29 @@ export class PolyfillBudgetManager {
       throw error;
     } finally {
       // Clean up allocation
-      this.deallocateBudget((operation as any).api || (operation as any).method || 'unknown' || 'unknown');
+      this.deallocateBudget(
+        (operation as any).api ||
+          (operation as any).method ||
+          "unknown" ||
+          "unknown",
+      );
     }
   }
 
   /**
    * Force yield to main thread
    */
-  async yieldToMainThread(duration: number = this.config.yieldDuration): Promise<void> {
+  async yieldToMainThread(
+    duration: number = this.config.yieldDuration,
+  ): Promise<void> {
     this.monitoringState.yieldEvents++;
-    
+
     if (duration === 0) {
       // Yield to next tick
-      return new Promise(resolve => setTimeout(resolve, 0));
+      return new Promise((resolve) => setTimeout(resolve, 0));
     } else {
       // Yield for specific duration
-      return new Promise(resolve => setTimeout(resolve, duration));
+      return new Promise((resolve) => setTimeout(resolve, duration));
     }
   }
 
@@ -233,11 +255,11 @@ export class PolyfillBudgetManager {
     const currentTime = performance.now();
     const elapsedTime = currentTime - this.budgetStartTime;
     const remainingBudget = Math.max(0, this.config.totalBudget - elapsedTime);
-    
+
     return {
       ...this.monitoringState,
       currentBudget: remainingBudget,
-      utilizationRate: elapsedTime / this.config.totalBudget
+      utilizationRate: elapsedTime / this.config.totalBudget,
     };
   }
 
@@ -247,20 +269,20 @@ export class PolyfillBudgetManager {
   resetBudget(): void {
     const currentTime = performance.now();
     const elapsedTime = currentTime - this.budgetStartTime;
-    
+
     // Track budget history
     this.budgetHistory.push(elapsedTime);
     if (this.budgetHistory.length > this.maxHistorySize) {
       this.budgetHistory.shift();
     }
-    
+
     // Reset budget
     this.currentBudget = this.config.totalBudget;
     this.budgetStartTime = currentTime;
-    
+
     // Update monitoring state
     this.updateMonitoringState();
-    
+
     // Process queued operations
     this.processQueuedOperations();
   }
@@ -275,21 +297,23 @@ export class PolyfillBudgetManager {
     yieldEfficiency: number;
     worstCaseScenarios: Array<{ operation: string; time: number }>;
   } {
-    const avgFrameTime = this.budgetHistory.length > 0 
-      ? this.budgetHistory.reduce((sum, time) => sum + time, 0) / this.budgetHistory.length
-      : 0;
-    
+    const avgFrameTime =
+      this.budgetHistory.length > 0
+        ? this.budgetHistory.reduce((sum, time) => sum + time, 0) /
+          this.budgetHistory.length
+        : 0;
+
     const budgetUtilization = avgFrameTime / this.config.totalBudget;
     const budgetViolations = this.violationHistory.length;
     const yieldEfficiency = this.calculateYieldEfficiency();
     const worstCaseScenarios = this.getWorstCaseScenarios();
-    
+
     return {
       budgetUtilization,
       averageFrameTime: avgFrameTime,
       budgetViolations,
       yieldEfficiency,
-      worstCaseScenarios
+      worstCaseScenarios,
     };
   }
 
@@ -298,7 +322,7 @@ export class PolyfillBudgetManager {
    */
   configureAdaptiveBudgeting(enabled: boolean): void {
     this.config.enableAdaptiveBudgeting = enabled;
-    
+
     if (enabled) {
       this.startAdaptiveBudgeting();
     }
@@ -320,12 +344,12 @@ export class PolyfillBudgetManager {
     if (this.isTestEnvironment) {
       return;
     }
-    
+
     // Reset budget every 16ms (60fps)
     setInterval(() => {
       this.resetBudget();
     }, this.budgetResetInterval);
-    
+
     // Monitor budget violations
     setInterval(() => {
       this.checkBudgetViolations();
@@ -334,12 +358,12 @@ export class PolyfillBudgetManager {
 
   private syncBudgetWithPerformanceSystem(): void {
     if (!this.performanceOptimizer) return;
-    
+
     // Don't start timers in test environment
     if (this.isTestEnvironment) {
       return;
     }
-    
+
     // Sync budget with performance budget
     setInterval(() => {
       // getRemainingBudget method doesn't exist, use fallback
@@ -352,10 +376,10 @@ export class PolyfillBudgetManager {
 
   private setupPerformanceSystemIntegration(): void {
     if (!this.performanceOptimizer) return;
-    
+
     // Register budget manager with performance system (methods don't exist, using fallback)
     // this.performanceOptimizer.registerBudgetManager('polyfills', this);
-    
+
     // Set up performance metrics sharing (methods don't exist, using fallback)
     // this.performanceOptimizer.onPerformanceUpdate((metrics: any) => {
     //   this.adjustBudgetBasedOnPerformanceMetrics(metrics);
@@ -364,20 +388,23 @@ export class PolyfillBudgetManager {
 
   private adjustBudgetBasedOnPerformanceMetrics(metrics: any): void {
     if (!metrics) return;
-    
+
     // Adjust budget based on performance metrics
     const averageLatency = metrics.averageLatency || 0;
-    const memoryPressure = metrics.memoryPressure || 'low';
-    
+    const memoryPressure = metrics.memoryPressure || "low";
+
     // Reduce budget under high memory pressure
-    if (memoryPressure === 'high' || memoryPressure === 'critical') {
+    if (memoryPressure === "high" || memoryPressure === "critical") {
       this.config.totalBudget = Math.min(this.config.totalBudget, 10);
       this.config.yieldThreshold = Math.min(this.config.yieldThreshold, 5);
     }
-    
+
     // Adjust based on average latency
     if (averageLatency > 10) {
-      this.config.yieldThreshold = Math.max(this.config.yieldThreshold * 0.8, 2);
+      this.config.yieldThreshold = Math.max(
+        this.config.yieldThreshold * 0.8,
+        2,
+      );
     }
   }
 
@@ -388,38 +415,42 @@ export class PolyfillBudgetManager {
   }
 
   private suggestAlternativeStrategy(operation: PolyfillOperation): string {
-    const estimatedTime = (operation as any).estimatedDuration || (operation as any).estimatedTime || 5;
+    const estimatedTime =
+      (operation as any).estimatedDuration ||
+      (operation as any).estimatedTime ||
+      5;
     const dataSize = (operation as any).dataSize || 0 || 0;
-    
+
     if (estimatedTime > this.config.totalBudget) {
-      return 'chunked-execution';
+      return "chunked-execution";
     }
-    
-    if (dataSize > 10 * 1024) { // 10KB
-      return 'streaming-processing';
+
+    if (dataSize > 10 * 1024) {
+      // 10KB
+      return "streaming-processing";
     }
-    
-    if (operation.priority === 'low') {
-      return 'deferred-execution';
+
+    if (operation.priority === "low") {
+      return "deferred-execution";
     }
-    
-    return 'cached-result';
+
+    return "cached-result";
   }
 
   private async handleBudgetViolation<T>(
     operation: PolyfillOperation,
-    executor: () => Promise<T> | T
+    executor: () => Promise<T> | T,
   ): Promise<T> {
     const strategy = this.suggestAlternativeStrategy(operation);
-    
+
     switch (strategy) {
-      case 'chunked-execution':
+      case "chunked-execution":
         return this.executeChunked(operation, executor);
-      case 'streaming-processing':
+      case "streaming-processing":
         return this.executeStreaming(operation, executor);
-      case 'deferred-execution':
+      case "deferred-execution":
         return this.executeDeferred(operation, executor);
-      case 'cached-result':
+      case "cached-result":
         return this.executeCached(operation, executor);
       default:
         // Yield and retry
@@ -430,31 +461,49 @@ export class PolyfillBudgetManager {
 
   private allocateBudget(operation: PolyfillOperation): BudgetAllocation {
     const allocation: BudgetAllocation = {
-      operation: (operation as any).api || (operation as any).method || 'unknown' || 'unknown',
-      allocated: (operation as any).estimatedDuration || (operation as any).estimatedTime || 5 || 5,
+      operation:
+        (operation as any).api ||
+        (operation as any).method ||
+        "unknown" ||
+        "unknown",
+      allocated:
+        (operation as any).estimatedDuration ||
+        (operation as any).estimatedTime ||
+        5 ||
+        5,
       used: 0,
-      remaining: (operation as any).estimatedDuration || (operation as any).estimatedTime || 5 || 5,
+      remaining:
+        (operation as any).estimatedDuration ||
+        (operation as any).estimatedTime ||
+        5 ||
+        5,
       priority: operation.priority,
-      yielded: false
+      yielded: false,
     };
-    
-    this.activeOperations.set((operation as any).api || (operation as any).method || 'unknown' || 'unknown', allocation);
+
+    this.activeOperations.set(
+      (operation as any).api ||
+        (operation as any).method ||
+        "unknown" ||
+        "unknown",
+      allocation,
+    );
     return allocation;
   }
 
   private async monitoredExecution<T>(
     operation: PolyfillOperation,
     executor: () => Promise<T> | T,
-    allocation: BudgetAllocation
+    allocation: BudgetAllocation,
   ): Promise<T> {
     const startTime = performance.now();
-    
+
     // Set up monitoring
     const monitor = setInterval(() => {
       const elapsed = performance.now() - startTime;
       allocation.used = elapsed;
       allocation.remaining = allocation.allocated - elapsed;
-      
+
       // Check if we need to yield
       if (elapsed > this.config.yieldThreshold && !allocation.yielded) {
         allocation.yielded = true;
@@ -462,7 +511,7 @@ export class PolyfillBudgetManager {
         setTimeout(() => this.yieldToMainThread(), 0);
       }
     }, 1); // Check every 1ms
-    
+
     try {
       const result = await executor();
       clearInterval(monitor);
@@ -473,29 +522,50 @@ export class PolyfillBudgetManager {
     }
   }
 
-  private updateBudgetUsage(operation: PolyfillOperation, executionTime: number): void {
+  private updateBudgetUsage(
+    operation: PolyfillOperation,
+    executionTime: number,
+  ): void {
     // Update current budget
     this.currentBudget = Math.max(0, this.currentBudget - executionTime);
-    
+
     // Track violation if over budget
-    if (executionTime > ((operation as any).estimatedDuration || (operation as any).estimatedTime || 5 || 5) * 1.5) {
+    if (
+      executionTime >
+      ((operation as any).estimatedDuration ||
+        (operation as any).estimatedTime ||
+        5 ||
+        5) *
+        1.5
+    ) {
       this.violationHistory.push({
         timestamp: Date.now(),
-        operation: (operation as any).api || (operation as any).method || 'unknown' || 'unknown',
-        overrun: executionTime - ((operation as any).estimatedDuration || (operation as any).estimatedTime || 5 || 5)
+        operation:
+          (operation as any).api ||
+          (operation as any).method ||
+          "unknown" ||
+          "unknown",
+        overrun:
+          executionTime -
+          ((operation as any).estimatedDuration ||
+            (operation as any).estimatedTime ||
+            5 ||
+            5),
       });
-      
+
       // Keep violation history size manageable
       if (this.violationHistory.length > this.maxHistorySize) {
         this.violationHistory.shift();
       }
     }
-    
+
     // Update monitoring state
-    this.monitoringState.averageOperationTime = 
+    this.monitoringState.averageOperationTime =
       (this.monitoringState.averageOperationTime + executionTime) / 2;
-    this.monitoringState.worstCaseOperationTime = 
-      Math.max(this.monitoringState.worstCaseOperationTime, executionTime);
+    this.monitoringState.worstCaseOperationTime = Math.max(
+      this.monitoringState.worstCaseOperationTime,
+      executionTime,
+    );
   }
 
   private deallocateBudget(operationId: string): void {
@@ -505,7 +575,7 @@ export class PolyfillBudgetManager {
   private checkBudgetViolations(): void {
     const currentTime = performance.now();
     const elapsedTime = currentTime - this.budgetStartTime;
-    
+
     if (elapsedTime > this.config.emergencyThreshold) {
       // Emergency yield
       this.yieldToMainThread();
@@ -514,22 +584,30 @@ export class PolyfillBudgetManager {
   }
 
   private updateMonitoringState(): void {
-    const avgBudgetUsage = this.budgetHistory.length > 0 
-      ? this.budgetHistory.reduce((sum, time) => sum + time, 0) / this.budgetHistory.length
-      : 0;
-    
-    this.monitoringState.utilizationRate = avgBudgetUsage / this.config.totalBudget;
+    const avgBudgetUsage =
+      this.budgetHistory.length > 0
+        ? this.budgetHistory.reduce((sum, time) => sum + time, 0) /
+          this.budgetHistory.length
+        : 0;
+
+    this.monitoringState.utilizationRate =
+      avgBudgetUsage / this.config.totalBudget;
     this.monitoringState.currentBudget = this.currentBudget;
   }
 
   private processQueuedOperations(): void {
     // Process any queued operations
-    while (this.operationQueue.length > 0 && this.currentBudget > this.config.yieldThreshold) {
+    while (
+      this.operationQueue.length > 0 &&
+      this.currentBudget > this.config.yieldThreshold
+    ) {
       const operation = this.operationQueue.shift();
       if (operation) {
         // Re-queue for execution
         setTimeout(() => {
-          this.executeWithBudgetEnforcement(operation, () => Promise.resolve(null));
+          this.executeWithBudgetEnforcement(operation, () =>
+            Promise.resolve(null),
+          );
         }, 0);
       }
     }
@@ -538,9 +616,9 @@ export class PolyfillBudgetManager {
   private calculateYieldEfficiency(): number {
     const totalYields = this.monitoringState.yieldEvents;
     const totalViolations = this.monitoringState.violationCount;
-    
+
     if (totalYields === 0) return 1.0;
-    
+
     // Efficiency = (yields - violations) / yields
     return Math.max(0, (totalYields - totalViolations) / totalYields);
   }
@@ -549,7 +627,7 @@ export class PolyfillBudgetManager {
     return this.violationHistory
       .sort((a, b) => b.overrun - a.overrun)
       .slice(0, 5)
-      .map(v => ({ operation: v.operation, time: v.overrun }));
+      .map((v) => ({ operation: v.operation, time: v.overrun }));
   }
 
   private startAdaptiveBudgeting(): void {
@@ -557,44 +635,52 @@ export class PolyfillBudgetManager {
     if (this.isTestEnvironment) {
       return;
     }
-    
+
     // Adaptive budgeting based on historical performance
     setInterval(() => {
-      const avgUsage = this.budgetHistory.length > 0 
-        ? this.budgetHistory.reduce((sum, time) => sum + time, 0) / this.budgetHistory.length
-        : 0;
-      
+      const avgUsage =
+        this.budgetHistory.length > 0
+          ? this.budgetHistory.reduce((sum, time) => sum + time, 0) /
+            this.budgetHistory.length
+          : 0;
+
       // Adjust yield threshold based on usage patterns
       if (avgUsage < this.config.totalBudget * 0.5) {
         // Low usage - can be more aggressive
-        this.config.yieldThreshold = Math.min(this.config.yieldThreshold * 1.1, 12);
+        this.config.yieldThreshold = Math.min(
+          this.config.yieldThreshold * 1.1,
+          12,
+        );
       } else if (avgUsage > this.config.totalBudget * 0.8) {
         // High usage - be more conservative
-        this.config.yieldThreshold = Math.max(this.config.yieldThreshold * 0.9, 2);
+        this.config.yieldThreshold = Math.max(
+          this.config.yieldThreshold * 0.9,
+          2,
+        );
       }
     }, 1000); // Adjust every second
   }
 
   private async executeChunked<T>(
     operation: PolyfillOperation,
-    executor: () => Promise<T> | T
+    executor: () => Promise<T> | T,
   ): Promise<T> {
     // Execute operation in chunks
     const chunkSize = Math.floor(this.config.yieldThreshold / 2);
     const chunks = this.createChunks(operation, chunkSize);
-    
+
     let result: T | null = null;
     for (const chunk of chunks) {
       result = await this.executeWithBudgetEnforcement(chunk, executor);
       await this.yieldToMainThread();
     }
-    
+
     return result as T;
   }
 
   private async executeStreaming<T>(
     operation: PolyfillOperation,
-    executor: () => Promise<T> | T
+    executor: () => Promise<T> | T,
   ): Promise<T> {
     // Execute with streaming approach
     await this.yieldToMainThread();
@@ -603,7 +689,7 @@ export class PolyfillBudgetManager {
 
   private async executeDeferred<T>(
     operation: PolyfillOperation,
-    executor: () => Promise<T> | T
+    executor: () => Promise<T> | T,
   ): Promise<T> {
     // Defer to next frame
     await this.yieldToMainThread(this.budgetResetInterval);
@@ -612,27 +698,33 @@ export class PolyfillBudgetManager {
 
   private async executeCached<T>(
     operation: PolyfillOperation,
-    executor: () => Promise<T> | T
+    executor: () => Promise<T> | T,
   ): Promise<T> {
     // Try to return cached result
     // For now, just execute normally
     return executor();
   }
 
-  private createChunks(operation: PolyfillOperation, chunkSize: number): PolyfillOperation[] {
+  private createChunks(
+    operation: PolyfillOperation,
+    chunkSize: number,
+  ): PolyfillOperation[] {
     // Create chunks based on operation size
     const totalSize = (operation as any).dataSize || 0 || 100;
     const numChunks = Math.ceil(totalSize / chunkSize);
-    
+
     const chunks: PolyfillOperation[] = [];
     for (let i = 0; i < numChunks; i++) {
       chunks.push({
         ...operation,
         // dataSize not available in this PolyfillOperation type
-        estimatedTime: ((operation as any).estimatedDuration || (operation as any).estimatedTime || 5) / numChunks
+        estimatedTime:
+          ((operation as any).estimatedDuration ||
+            (operation as any).estimatedTime ||
+            5) / numChunks,
       } as any);
     }
-    
+
     return chunks;
   }
 }
@@ -645,14 +737,18 @@ export const polyfillBudgetManager = new PolyfillBudgetManager();
 /**
  * Initialize budget manager with custom configuration
  */
-export function initializePolyfillBudgetManager(config?: Partial<BudgetEnforcementConfig>): PolyfillBudgetManager {
+export function initializePolyfillBudgetManager(
+  config?: Partial<BudgetEnforcementConfig>,
+): PolyfillBudgetManager {
   return new PolyfillBudgetManager(config);
 }
 
 /**
  * Quick budget check for polyfill operations
  */
-export function canExecutePolyfillOperation(operation: PolyfillOperation): boolean {
+export function canExecutePolyfillOperation(
+  operation: PolyfillOperation,
+): boolean {
   return polyfillBudgetManager.canProceedWithBudget(operation).allowed;
 }
 
@@ -661,7 +757,10 @@ export function canExecutePolyfillOperation(operation: PolyfillOperation): boole
  */
 export async function executePolyfillWithBudget<T>(
   operation: PolyfillOperation,
-  executor: () => Promise<T> | T
+  executor: () => Promise<T> | T,
 ): Promise<T> {
-  return polyfillBudgetManager.executeWithBudgetEnforcement(operation, executor);
+  return polyfillBudgetManager.executeWithBudgetEnforcement(
+    operation,
+    executor,
+  );
 }

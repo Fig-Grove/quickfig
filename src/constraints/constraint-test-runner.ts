@@ -3,10 +3,16 @@
  * Provides real-time constraint validation during test execution
  */
 
-import { FigmaConstraintDetector } from './figma-constraint-detector.js';
-import { FigmaRuntimeSimulator } from '../mocks/figma-runtime-simulator.js';
-import { applyEnvironmentPolyfills, initializeConstraintAwarePolyfills } from '../polyfills/environment-polyfills-impl.js';
-import { createFigmaTestEnvironment, FIGMA_SANDBOX_CONFIG } from '../harness/quickjs-harness.js';
+import { FigmaConstraintDetector } from "./figma-constraint-detector.js";
+import { FigmaRuntimeSimulator } from "../mocks/figma-runtime-simulator.js";
+import {
+  applyEnvironmentPolyfills,
+  initializeConstraintAwarePolyfills,
+} from "../polyfills/environment-polyfills-impl.js";
+import {
+  createFigmaTestEnvironment,
+  FIGMA_SANDBOX_CONFIG,
+} from "../harness/quickjs-harness.js";
 
 export interface ConstraintTestConfig {
   memoryLimit?: number;
@@ -27,7 +33,7 @@ export interface ConstraintTestResult {
   violations: Array<{
     type: string;
     message: string;
-    severity: 'warning' | 'error';
+    severity: "warning" | "error";
     suggestion?: string;
   }>;
   performance: {
@@ -41,7 +47,11 @@ export class ConstraintTestRunner {
   private constraintDetector: FigmaConstraintDetector;
   private figmaSimulator: FigmaRuntimeSimulator | null = null;
   private config: Required<ConstraintTestConfig>;
-  private performanceHistory: Array<{ testName: string; executionTime: number; timestamp: number }> = [];
+  private performanceHistory: Array<{
+    testName: string;
+    executionTime: number;
+    timestamp: number;
+  }> = [];
   private baselinePerformance: Map<string, number> = new Map();
   private enhancedIntegration: boolean = false;
 
@@ -57,7 +67,7 @@ export class ConstraintTestRunner {
       enablePerformanceRegression: config.enablePerformanceRegression ?? true,
       performanceBaseline: config.performanceBaseline || 20, // 20ms baseline
       autoAdjustThresholds: config.autoAdjustThresholds ?? false,
-      trackHistoricalPerformance: config.trackHistoricalPerformance ?? true
+      trackHistoricalPerformance: config.trackHistoricalPerformance ?? true,
     };
 
     // Initialize enhanced components
@@ -75,7 +85,7 @@ export class ConstraintTestRunner {
         uiBlockingThreshold: this.config.uiBlockingThreshold,
         maxMemoryPerOperation: this.config.memoryLimit,
         maxStringSize: 500 * 1024, // 500KB max string size
-        maxStackDepth: 100 // Reasonable stack depth limit
+        maxStackDepth: 100, // Reasonable stack depth limit
       });
 
       // Apply environment polyfills for QuickJS compatibility
@@ -83,33 +93,33 @@ export class ConstraintTestRunner {
       initializeConstraintAwarePolyfills();
 
       this.enhancedIntegration = false; // Temporarily disabled for debugging
-      console.log('🔧 Enhanced integration temporarily disabled');
+      console.log("🔧 Enhanced integration temporarily disabled");
     } catch (error) {
-      console.warn('⚠️  Enhanced integration failed to initialize:', error);
+      console.warn("⚠️  Enhanced integration failed to initialize:", error);
       this.enhancedIntegration = false;
     }
   }
 
   async runConstraintAwareTest(
     testFunction: () => any,
-    testName: string = 'Anonymous Test'
+    testName: string = "Anonymous Test",
   ): Promise<ConstraintTestResult> {
     const startTime = performance.now();
-    const violations: ConstraintTestResult['violations'] = [];
+    const violations: ConstraintTestResult["violations"] = [];
 
     try {
       // Pre-execution constraint check
       if (this.config.enableRealTimeValidation) {
         const preCheck = this.constraintDetector.checkOperation({
-          type: 'execution',
-          duration: 0
+          type: "execution",
+          duration: 0,
         });
 
         if (!preCheck.allowed) {
           violations.push({
-            type: 'pre-execution',
-            message: 'Test environment not ready for execution',
-            severity: 'error'
+            type: "pre-execution",
+            message: "Test environment not ready for execution",
+            severity: "error",
           });
         }
       }
@@ -123,44 +133,51 @@ export class ConstraintTestRunner {
         testEnv = {
           runSandboxed: async (testCode: string) => {
             try {
-              const simulatorResult = await this.figmaSimulator!.runInFigmaEnvironment(testCode);
-              
+              const simulatorResult =
+                await this.figmaSimulator!.runInFigmaEnvironment(testCode);
+
               if (simulatorResult.success) {
                 return {
                   testResult: simulatorResult.data,
                   testDuration: simulatorResult.metrics.executionTime,
-                  enhancedMetrics: simulatorResult.metrics
+                  enhancedMetrics: simulatorResult.metrics,
                 };
               } else {
-                console.warn('Enhanced execution failed, falling back to standard execution:', simulatorResult.error?.message);
+                console.warn(
+                  "Enhanced execution failed, falling back to standard execution:",
+                  simulatorResult.error?.message,
+                );
                 // Fallback to direct execution - call the original test function directly
                 const result = testFunction();
                 return {
                   testResult: result,
-                  testDuration: 0
+                  testDuration: 0,
                 };
               }
             } catch (error) {
-              console.warn('Enhanced execution error, falling back to standard execution:', error);
+              console.warn(
+                "Enhanced execution error, falling back to standard execution:",
+                error,
+              );
               // Fallback to direct execution - call the original test function directly
               const result = testFunction();
               return {
                 testResult: result,
-                testDuration: 0
+                testDuration: 0,
               };
             }
-          }
+          },
         };
         useEnhanced = true;
       } else {
         // Fallback to standard QuickJS harness
         testEnv = await createFigmaTestEnvironment();
       }
-      
+
       // Wrap test function with constraint monitoring
       const monitoredTestFunction = () => {
         const testStart = performance.now();
-        
+
         try {
           const result = testFunction();
           const testEnd = performance.now();
@@ -169,48 +186,57 @@ export class ConstraintTestRunner {
           // Check execution time constraint
           if (duration > this.config.uiBlockingThreshold) {
             violations.push({
-              type: 'ui-blocking',
+              type: "ui-blocking",
               message: `Test execution exceeded UI blocking threshold: ${duration.toFixed(2)}ms > ${this.config.uiBlockingThreshold}ms`,
-              severity: 'warning',
-              suggestion: 'Consider optimizing test logic or breaking into smaller operations'
+              severity: "warning",
+              suggestion:
+                "Consider optimizing test logic or breaking into smaller operations",
             });
           }
 
           if (duration > this.config.executionLimit) {
             violations.push({
-              type: 'execution-timeout',
+              type: "execution-timeout",
               message: `Test execution exceeded time limit: ${duration.toFixed(2)}ms > ${this.config.executionLimit}ms`,
-              severity: 'error',
-              suggestion: 'Reduce test complexity or increase timeout limit'
+              severity: "error",
+              suggestion: "Reduce test complexity or increase timeout limit",
             });
           }
 
           return {
             testResult: result,
-            testDuration: duration
+            testDuration: duration,
           };
         } catch (error) {
           // Check if error is constraint-related
           if (error instanceof Error) {
-            if (error.message.includes('Memory limit') || error.message.includes('memory')) {
+            if (
+              error.message.includes("Memory limit") ||
+              error.message.includes("memory")
+            ) {
               violations.push({
-                type: 'memory-violation',
+                type: "memory-violation",
                 message: `Memory constraint violated: ${error.message}`,
-                severity: 'error',
-                suggestion: 'Reduce memory usage or implement chunking strategy'
+                severity: "error",
+                suggestion:
+                  "Reduce memory usage or implement chunking strategy",
               });
             }
 
-            if (error.message.includes('Worker') || error.message.includes('setTimeout')) {
+            if (
+              error.message.includes("Worker") ||
+              error.message.includes("setTimeout")
+            ) {
               violations.push({
-                type: 'api-violation',
+                type: "api-violation",
                 message: `Blocked API usage: ${error.message}`,
-                severity: 'warning',
-                suggestion: 'Use constraint-aware polyfills or alternative approaches'
+                severity: "warning",
+                suggestion:
+                  "Use constraint-aware polyfills or alternative approaches",
               });
             }
           }
-          
+
           throw error;
         }
       };
@@ -228,67 +254,87 @@ export class ConstraintTestRunner {
       // Enhanced constraint validation using enhanced metrics if available
       if (useEnhanced && result.enhancedMetrics) {
         const enhancedMetrics = result.enhancedMetrics;
-        
+
         // Use enhanced constraint violations if available
-        if (enhancedMetrics.constraintViolations && enhancedMetrics.constraintViolations.length > 0) {
+        if (
+          enhancedMetrics.constraintViolations &&
+          enhancedMetrics.constraintViolations.length > 0
+        ) {
           enhancedMetrics.constraintViolations.forEach((violation: any) => {
             violations.push({
               type: `enhanced-${violation.type}`,
               message: violation.message,
-              severity: violation.severity === 'error' ? 'error' : 'warning',
-              suggestion: violation.suggestion || 'Review constraint-aware implementation patterns'
+              severity: violation.severity === "error" ? "error" : "warning",
+              suggestion:
+                violation.suggestion ||
+                "Review constraint-aware implementation patterns",
             });
           });
         }
 
         // Log enhanced integration success
         if (this.config.logViolations) {
-          console.log(`   🔧 Enhanced integration: ${enhancedMetrics.constraintViolations?.length || 0} violations detected`);
+          console.log(
+            `   🔧 Enhanced integration: ${enhancedMetrics.constraintViolations?.length || 0} violations detected`,
+          );
         }
       }
 
       // Post-execution constraint validation
       const memoryCheck = this.constraintDetector.checkOperation({
-        type: 'memory',
-        size: this.estimateMemoryUsage(result)
+        type: "memory",
+        size: this.estimateMemoryUsage(result),
       });
 
       if (!memoryCheck.allowed) {
-        violations.push(...memoryCheck.violations.map(v => ({
-          type: 'memory-constraint',
-          message: v.message,
-          severity: 'error' as const,
-          suggestion: v.remediation
-        })));
+        violations.push(
+          ...memoryCheck.violations.map((v) => ({
+            type: "memory-constraint",
+            message: v.message,
+            severity: "error" as const,
+            suggestion: v.remediation,
+          })),
+        );
       }
 
       // Enhanced test harness: Performance regression detection
-      if (this.config.enablePerformanceRegression && this.config.trackHistoricalPerformance) {
+      if (
+        this.config.enablePerformanceRegression &&
+        this.config.trackHistoricalPerformance
+      ) {
         this.trackPerformance(testName, totalDuration);
-        const regressionCheck = this.detectPerformanceRegression(testName, totalDuration);
+        const regressionCheck = this.detectPerformanceRegression(
+          testName,
+          totalDuration,
+        );
         if (regressionCheck.isRegression) {
           violations.push({
-            type: 'performance-regression',
+            type: "performance-regression",
             message: regressionCheck.message,
-            severity: 'warning',
-            suggestion: regressionCheck.suggestion
+            severity: "warning",
+            suggestion: regressionCheck.suggestion,
           });
         }
       }
 
       // Enhanced test harness: Auto-adjust thresholds based on performance history
-      if (this.config.autoAdjustThresholds && this.performanceHistory.length > 5) {
+      if (
+        this.config.autoAdjustThresholds &&
+        this.performanceHistory.length > 5
+      ) {
         const adjustedThreshold = this.calculateOptimalThreshold(testName);
         if (adjustedThreshold !== this.config.uiBlockingThreshold) {
-          console.log(`🔧 Auto-adjusting UI blocking threshold for "${testName}": ${this.config.uiBlockingThreshold}ms → ${adjustedThreshold}ms`);
+          console.log(
+            `🔧 Auto-adjusting UI blocking threshold for "${testName}": ${this.config.uiBlockingThreshold}ms → ${adjustedThreshold}ms`,
+          );
         }
       }
 
       // Log violations if enabled
       if (this.config.logViolations && violations.length > 0) {
         console.log(`\n🚨 Constraint violations in test "${testName}":`);
-        violations.forEach(violation => {
-          const emoji = violation.severity === 'error' ? '❌' : '⚠️';
+        violations.forEach((violation) => {
+          const emoji = violation.severity === "error" ? "❌" : "⚠️";
           console.log(`   ${emoji} ${violation.type}: ${violation.message}`);
           if (violation.suggestion) {
             console.log(`      💡 ${violation.suggestion}`);
@@ -298,35 +344,38 @@ export class ConstraintTestRunner {
 
       // Use the actual test execution time, not the total framework overhead time
       const actualExecutionTime = result?.executionTime || totalDuration;
-      
+
       // Check if sandboxed execution failed
       if (result && !result.ok && result.error) {
         // Sandboxed execution failed, fall back to direct execution
-        console.log('🔄 Sandboxed execution failed, falling back to direct execution');
+        console.log(
+          "🔄 Sandboxed execution failed, falling back to direct execution",
+        );
         const directStart = performance.now();
         const directResult = testFunction();
         const directEnd = performance.now();
         const directExecutionTime = directEnd - directStart;
-        
+
         // Add violation detection for direct execution
         if (directExecutionTime > this.config.uiBlockingThreshold) {
           violations.push({
-            type: 'ui-blocking',
+            type: "ui-blocking",
             message: `Test execution exceeded UI blocking threshold: ${directExecutionTime.toFixed(2)}ms > ${this.config.uiBlockingThreshold}ms`,
-            severity: 'warning',
-            suggestion: 'Consider optimizing test logic or breaking into smaller operations'
+            severity: "warning",
+            suggestion:
+              "Consider optimizing test logic or breaking into smaller operations",
           });
         }
 
         if (directExecutionTime > this.config.executionLimit) {
           violations.push({
-            type: 'execution-timeout',
+            type: "execution-timeout",
             message: `Test execution exceeded time limit: ${directExecutionTime.toFixed(2)}ms > ${this.config.executionLimit}ms`,
-            severity: 'error',
-            suggestion: 'Reduce test complexity or increase timeout limit'
+            severity: "error",
+            suggestion: "Reduce test complexity or increase timeout limit",
           });
         }
-        
+
         return {
           success: true,
           result: directResult,
@@ -334,11 +383,11 @@ export class ConstraintTestRunner {
           performance: {
             executionTime: directExecutionTime,
             memoryUsage: this.estimateMemoryUsage(directResult),
-            uiBlocking: directExecutionTime > this.config.uiBlockingThreshold
-          }
+            uiBlocking: directExecutionTime > this.config.uiBlockingThreshold,
+          },
         };
       }
-      
+
       return {
         success: true,
         result: result?.testResult || result?.data || result,
@@ -346,10 +395,9 @@ export class ConstraintTestRunner {
         performance: {
           executionTime: actualExecutionTime,
           memoryUsage: this.estimateMemoryUsage(result?.data || result),
-          uiBlocking: actualExecutionTime > this.config.uiBlockingThreshold
-        }
+          uiBlocking: actualExecutionTime > this.config.uiBlockingThreshold,
+        },
       };
-
     } catch (error) {
       const endTime = performance.now();
       const totalDuration = endTime - startTime;
@@ -359,22 +407,22 @@ export class ConstraintTestRunner {
         violations: [
           ...violations,
           {
-            type: 'test-failure',
-            message: error instanceof Error ? error.message : 'Unknown error',
-            severity: 'error'
-          }
+            type: "test-failure",
+            message: error instanceof Error ? error.message : "Unknown error",
+            severity: "error",
+          },
         ],
         performance: {
           executionTime: totalDuration,
-          uiBlocking: totalDuration > this.config.uiBlockingThreshold
-        }
+          uiBlocking: totalDuration > this.config.uiBlockingThreshold,
+        },
       };
     }
   }
 
   private estimateMemoryUsage(data: any): number {
     if (data === null || data === undefined) return 0;
-    
+
     try {
       const serialized = JSON.stringify(data);
       return new TextEncoder().encode(serialized).length;
@@ -391,21 +439,25 @@ export class ConstraintTestRunner {
     this.performanceHistory.push({
       testName,
       executionTime,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     // Keep only last 50 performance records per test
-    const testHistory = this.performanceHistory.filter(h => h.testName === testName);
+    const testHistory = this.performanceHistory.filter(
+      (h) => h.testName === testName,
+    );
     if (testHistory.length > 50) {
-      this.performanceHistory = this.performanceHistory.filter(h => 
-        h.testName !== testName || testHistory.slice(-50).includes(h)
+      this.performanceHistory = this.performanceHistory.filter(
+        (h) => h.testName !== testName || testHistory.slice(-50).includes(h),
       );
     }
 
     // Update baseline if this is a new test or we have enough samples
     if (!this.baselinePerformance.has(testName) || testHistory.length >= 5) {
       const recentHistory = testHistory.slice(-10);
-      const averageTime = recentHistory.reduce((sum, h) => sum + h.executionTime, 0) / recentHistory.length;
+      const averageTime =
+        recentHistory.reduce((sum, h) => sum + h.executionTime, 0) /
+        recentHistory.length;
       this.baselinePerformance.set(testName, averageTime);
     }
   }
@@ -413,14 +465,17 @@ export class ConstraintTestRunner {
   /**
    * Enhanced test harness: Detect performance regression
    */
-  private detectPerformanceRegression(testName: string, currentTime: number): {
+  private detectPerformanceRegression(
+    testName: string,
+    currentTime: number,
+  ): {
     isRegression: boolean;
     message: string;
     suggestion: string;
   } {
     const baseline = this.baselinePerformance.get(testName);
     if (!baseline) {
-      return { isRegression: false, message: '', suggestion: '' };
+      return { isRegression: false, message: "", suggestion: "" };
     }
 
     const regressionThreshold = baseline * 1.5; // 50% slower than baseline
@@ -430,7 +485,8 @@ export class ConstraintTestRunner {
       return {
         isRegression: true,
         message: `Significant performance regression detected: ${currentTime.toFixed(2)}ms vs ${baseline.toFixed(2)}ms baseline (${((currentTime / baseline - 1) * 100).toFixed(1)}% slower)`,
-        suggestion: 'Review recent changes that might have introduced performance issues'
+        suggestion:
+          "Review recent changes that might have introduced performance issues",
       };
     }
 
@@ -438,29 +494,37 @@ export class ConstraintTestRunner {
       return {
         isRegression: true,
         message: `Performance regression detected: ${currentTime.toFixed(2)}ms vs ${baseline.toFixed(2)}ms baseline (${((currentTime / baseline - 1) * 100).toFixed(1)}% slower)`,
-        suggestion: 'Consider optimizing this test or investigating recent changes'
+        suggestion:
+          "Consider optimizing this test or investigating recent changes",
       };
     }
 
-    return { isRegression: false, message: '', suggestion: '' };
+    return { isRegression: false, message: "", suggestion: "" };
   }
 
   /**
    * Enhanced test harness: Calculate optimal threshold based on performance history
    */
   private calculateOptimalThreshold(testName: string): number {
-    const testHistory = this.performanceHistory.filter(h => h.testName === testName);
+    const testHistory = this.performanceHistory.filter(
+      (h) => h.testName === testName,
+    );
     if (testHistory.length < 5) {
       return this.config.uiBlockingThreshold;
     }
 
     // Calculate 95th percentile of execution times
-    const sortedTimes = testHistory.map(h => h.executionTime).sort((a, b) => a - b);
+    const sortedTimes = testHistory
+      .map((h) => h.executionTime)
+      .sort((a, b) => a - b);
     const percentile95Index = Math.floor(sortedTimes.length * 0.95);
     const percentile95 = sortedTimes[percentile95Index];
 
     // Use 95th percentile + 20% buffer as optimal threshold
-    return Math.max(this.config.uiBlockingThreshold, Math.ceil(percentile95 * 1.2));
+    return Math.max(
+      this.config.uiBlockingThreshold,
+      Math.ceil(percentile95 * 1.2),
+    );
   }
 
   /**
@@ -472,7 +536,10 @@ export class ConstraintTestRunner {
     regressionCount: number;
     fastestTest: { name: string; time: number } | null;
     slowestTest: { name: string; time: number } | null;
-    performanceTrends: Array<{ testName: string; trend: 'improving' | 'stable' | 'degrading' }>;
+    performanceTrends: Array<{
+      testName: string;
+      trend: "improving" | "stable" | "degrading";
+    }>;
   } {
     if (this.performanceHistory.length === 0) {
       return {
@@ -481,25 +548,35 @@ export class ConstraintTestRunner {
         regressionCount: 0,
         fastestTest: null,
         slowestTest: null,
-        performanceTrends: []
+        performanceTrends: [],
       };
     }
 
-    const uniqueTests = new Set(this.performanceHistory.map(h => h.testName));
+    const uniqueTests = new Set(this.performanceHistory.map((h) => h.testName));
     const totalTests = uniqueTests.size;
-    const averageExecutionTime = this.performanceHistory.reduce((sum, h) => sum + h.executionTime, 0) / this.performanceHistory.length;
+    const averageExecutionTime =
+      this.performanceHistory.reduce((sum, h) => sum + h.executionTime, 0) /
+      this.performanceHistory.length;
 
     let regressionCount = 0;
     let fastestTest: { name: string; time: number } | null = null;
     let slowestTest: { name: string; time: number } | null = null;
-    const performanceTrends: Array<{ testName: string; trend: 'improving' | 'stable' | 'degrading' }> = [];
+    const performanceTrends: Array<{
+      testName: string;
+      trend: "improving" | "stable" | "degrading";
+    }> = [];
 
     for (const testName of uniqueTests) {
-      const testHistory = this.performanceHistory.filter(h => h.testName === testName);
+      const testHistory = this.performanceHistory.filter(
+        (h) => h.testName === testName,
+      );
       const latestTime = testHistory[testHistory.length - 1].executionTime;
-      
+
       // Check for regression
-      const regressionCheck = this.detectPerformanceRegression(testName, latestTime);
+      const regressionCheck = this.detectPerformanceRegression(
+        testName,
+        latestTime,
+      );
       if (regressionCheck.isRegression) {
         regressionCount++;
       }
@@ -515,15 +592,20 @@ export class ConstraintTestRunner {
       // Analyze performance trend
       if (testHistory.length >= 5) {
         const recentHistory = testHistory.slice(-5);
-        const oldAverage = recentHistory.slice(0, 2).reduce((sum, h) => sum + h.executionTime, 0) / 2;
-        const newAverage = recentHistory.slice(-2).reduce((sum, h) => sum + h.executionTime, 0) / 2;
-        
+        const oldAverage =
+          recentHistory
+            .slice(0, 2)
+            .reduce((sum, h) => sum + h.executionTime, 0) / 2;
+        const newAverage =
+          recentHistory.slice(-2).reduce((sum, h) => sum + h.executionTime, 0) /
+          2;
+
         const improvement = (oldAverage - newAverage) / oldAverage;
-        let trend: 'improving' | 'stable' | 'degrading' = 'stable';
-        
-        if (improvement > 0.1) trend = 'improving';
-        else if (improvement < -0.1) trend = 'degrading';
-        
+        let trend: "improving" | "stable" | "degrading" = "stable";
+
+        if (improvement > 0.1) trend = "improving";
+        else if (improvement < -0.1) trend = "degrading";
+
         performanceTrends.push({ testName, trend });
       }
     }
@@ -534,7 +616,7 @@ export class ConstraintTestRunner {
       regressionCount,
       fastestTest,
       slowestTest,
-      performanceTrends
+      performanceTrends,
     };
   }
 
@@ -552,21 +634,27 @@ export class ConstraintTestRunner {
       integrationStatus: this.enhancedIntegration,
       constraintDetectorStatus: this.constraintDetector.getDiagnostics(),
       figmaSimulatorStatus: this.figmaSimulator !== null,
-      polyfillsStatus: typeof globalThis.TextEncoder !== 'undefined',
-      recommendations: [] as string[]
+      polyfillsStatus: typeof globalThis.TextEncoder !== "undefined",
+      recommendations: [] as string[],
     };
 
     // Generate recommendations based on status
     if (!this.enhancedIntegration) {
-      diagnostics.recommendations.push('Enable enhanced integration for enhanced constraint awareness');
+      diagnostics.recommendations.push(
+        "Enable enhanced integration for enhanced constraint awareness",
+      );
     }
 
     if (diagnostics.constraintDetectorStatus.violations.length > 0) {
-      diagnostics.recommendations.push('Review constraint violations and implement suggested fixes');
+      diagnostics.recommendations.push(
+        "Review constraint violations and implement suggested fixes",
+      );
     }
 
     if (!diagnostics.polyfillsStatus) {
-      diagnostics.recommendations.push('Ensure environment polyfills are properly loaded');
+      diagnostics.recommendations.push(
+        "Ensure environment polyfills are properly loaded",
+      );
     }
 
     return diagnostics;
@@ -579,7 +667,7 @@ export class ConstraintTestRunner {
     this.constraintDetector.resetHistory();
     this.performanceHistory = [];
     this.baselinePerformance.clear();
-    console.log('🔄 Constraint history reset for fresh testing session');
+    console.log("🔄 Constraint history reset for fresh testing session");
   }
 
   async runTDDWorkflow(
@@ -587,14 +675,16 @@ export class ConstraintTestRunner {
       name: string;
       test: () => any;
       constraints?: ConstraintTestConfig;
-    }>
+    }>,
   ): Promise<{
     passed: number;
     failed: number;
     violations: number;
     results: ConstraintTestResult[];
   }> {
-    console.log(`\n🧪 Running TDD workflow with ${testSuite.length} constraint-aware tests...\n`);
+    console.log(
+      `\n🧪 Running TDD workflow with ${testSuite.length} constraint-aware tests...\n`,
+    );
 
     const results: ConstraintTestResult[] = [];
     let passed = 0;
@@ -603,17 +693,23 @@ export class ConstraintTestRunner {
 
     for (const testCase of testSuite) {
       console.log(`🔍 Running: ${testCase.name}`);
-      
+
       // Create constraint-specific runner if needed
-      const runner = testCase.constraints ? 
-        new ConstraintTestRunner(testCase.constraints) : this;
-      
-      const result = await runner.runConstraintAwareTest(testCase.test, testCase.name);
+      const runner = testCase.constraints
+        ? new ConstraintTestRunner(testCase.constraints)
+        : this;
+
+      const result = await runner.runConstraintAwareTest(
+        testCase.test,
+        testCase.name,
+      );
       results.push(result);
 
       if (result.success) {
         passed++;
-        console.log(`   ✅ Passed (${result.performance.executionTime.toFixed(2)}ms)`);
+        console.log(
+          `   ✅ Passed (${result.performance.executionTime.toFixed(2)}ms)`,
+        );
       } else {
         failed++;
         console.log(`   ❌ Failed`);
@@ -625,32 +721,42 @@ export class ConstraintTestRunner {
         console.log(`   🚨 ${result.violations.length} constraint violations`);
       }
 
-      console.log('');
+      console.log("");
     }
 
-    console.log('='.repeat(50));
+    console.log("=".repeat(50));
     console.log(`📊 TDD Workflow Summary:`);
     console.log(`   Tests passed: ${passed}/${testSuite.length}`);
     console.log(`   Tests failed: ${failed}/${testSuite.length}`);
     console.log(`   Total constraint violations: ${totalViolations}`);
-    console.log(`   Success rate: ${((passed / testSuite.length) * 100).toFixed(1)}%`);
-    
+    console.log(
+      `   Success rate: ${((passed / testSuite.length) * 100).toFixed(1)}%`,
+    );
+
     // Enhanced test harness: Performance reporting
     if (this.config.trackHistoricalPerformance) {
       const performanceReport = this.getPerformanceReport();
-      console.log(`   Average execution time: ${performanceReport.averageExecutionTime.toFixed(2)}ms`);
+      console.log(
+        `   Average execution time: ${performanceReport.averageExecutionTime.toFixed(2)}ms`,
+      );
       if (performanceReport.regressionCount > 0) {
-        console.log(`   ⚠️  Performance regressions detected: ${performanceReport.regressionCount}`);
+        console.log(
+          `   ⚠️  Performance regressions detected: ${performanceReport.regressionCount}`,
+        );
       }
       if (performanceReport.fastestTest) {
-        console.log(`   ⚡ Fastest test: ${performanceReport.fastestTest.name} (${performanceReport.fastestTest.time.toFixed(2)}ms)`);
+        console.log(
+          `   ⚡ Fastest test: ${performanceReport.fastestTest.name} (${performanceReport.fastestTest.time.toFixed(2)}ms)`,
+        );
       }
       if (performanceReport.slowestTest) {
-        console.log(`   🐌 Slowest test: ${performanceReport.slowestTest.name} (${performanceReport.slowestTest.time.toFixed(2)}ms)`);
+        console.log(
+          `   🐌 Slowest test: ${performanceReport.slowestTest.name} (${performanceReport.slowestTest.time.toFixed(2)}ms)`,
+        );
       }
     }
-    
-    console.log('='.repeat(50));
+
+    console.log("=".repeat(50));
 
     return { passed, failed, violations: totalViolations, results };
   }
@@ -659,7 +765,7 @@ export class ConstraintTestRunner {
 // Export convenience function for quick constraint testing
 export async function testWithConstraints(
   testFunction: () => any,
-  config?: ConstraintTestConfig
+  config?: ConstraintTestConfig,
 ): Promise<ConstraintTestResult> {
   const runner = new ConstraintTestRunner(config);
   return runner.runConstraintAwareTest(testFunction);
@@ -667,8 +773,17 @@ export async function testWithConstraints(
 
 // Export TDD workflow runner
 export async function runTDDWorkflow(
-  tests: Array<{ name: string; test: () => any; constraints?: ConstraintTestConfig }>
-): Promise<{ passed: number; failed: number; violations: number; results: ConstraintTestResult[] }> {
+  tests: Array<{
+    name: string;
+    test: () => any;
+    constraints?: ConstraintTestConfig;
+  }>,
+): Promise<{
+  passed: number;
+  failed: number;
+  violations: number;
+  results: ConstraintTestResult[];
+}> {
   const runner = new ConstraintTestRunner();
   return runner.runTDDWorkflow(tests);
 }

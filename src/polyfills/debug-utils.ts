@@ -5,7 +5,7 @@
 export function createDebugLogger(context: string) {
   return {
     log: (message: string, ...args: any[]) => {
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         console.log(`[${context}] ${message}`, ...args);
       }
     },
@@ -14,12 +14,12 @@ export function createDebugLogger(context: string) {
     },
     error: (message: string, ...args: any[]) => {
       console.error(`[${context}] ${message}`, ...args);
-    }
+    },
   };
 }
 
 export function debugPolyfillState(polyfillName: string, state: any) {
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === "development") {
     console.log(`[Polyfill Debug] ${polyfillName}:`, state);
   }
 }
@@ -29,17 +29,18 @@ export function debugWarn(message: string, ...args: any[]) {
 }
 
 export function debugLog(message: string, ...args: any[]) {
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === "development") {
     console.log(`[Debug] ${message}`, ...args);
   }
 }
 
 export function getSafeUserAgent(): string {
   try {
-    return typeof globalThis !== 'undefined' && typeof (globalThis as any).navigator !== 'undefined' 
-      ? (globalThis as any).navigator.userAgent 
-      : 'Node.js';
+    return typeof globalThis !== "undefined" &&
+      typeof (globalThis as any).navigator !== "undefined"
+      ? (globalThis as any).navigator.userAgent
+      : "Node.js";
   } catch {
-    return 'Node.js';
+    return "Node.js";
   }
 }

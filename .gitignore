@@ -67,3 +67,6 @@ Thumbs.db
 quality-gate-reports/quality-gates-*.json
 quality-gate-reports/quality-gates-*.xml
 quality-gate-reports/quality-gates-*.txt
+
+# Internal planning and roadmap (keep local-only, never commit)
+ROADMAP.md

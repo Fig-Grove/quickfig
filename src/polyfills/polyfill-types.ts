@@ -1,6 +1,6 @@
 /**
  * Comprehensive TypeScript Types for Polyfill System
- * 
+ *
  * Provides complete type safety and runtime type checking for the entire
  * polyfill architecture with comprehensive error handling support.
  */
@@ -31,7 +31,7 @@ export interface PolyfillOperation {
   method: string;
   dataSize: number;
   estimatedDuration: number;
-  priority: 'low' | 'medium' | 'high' | 'critical';
+  priority: "low" | "medium" | "high" | "critical";
   context: PolyfillOperationContext;
   memoryRequired?: number;
 }
@@ -50,8 +50,8 @@ export interface ConstraintCheckResult {
  * Enhanced constraint violation with detailed context
  */
 export interface ConstraintViolation {
-  type: 'memory' | 'performance' | 'api' | 'security' | 'size' | 'timeout';
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  type: "memory" | "performance" | "api" | "security" | "size" | "timeout";
+  severity: "low" | "medium" | "high" | "critical";
   polyfill: string;
   operation?: string;
   details: {
@@ -74,12 +74,12 @@ export interface PolyfillDiagnosticInfo {
   errorCode: string;
   api: string;
   operation: string;
-  severity: 'info' | 'warning' | 'error' | 'critical';
+  severity: "info" | "warning" | "error" | "critical";
   context: PolyfillOperationContext;
   stackTrace?: string;
   remediationSteps: string[];
   fallbackOptions: string[];
-  performanceImpact: 'none' | 'low' | 'medium' | 'high';
+  performanceImpact: "none" | "low" | "medium" | "high";
   memoryImpact: number; // bytes
 }
 
@@ -89,7 +89,7 @@ export interface PolyfillDiagnosticInfo {
 export interface MemoryMetrics {
   currentUsage: number;
   peakUsage: number;
-  pressure: 'low' | 'medium' | 'high' | 'critical';
+  pressure: "low" | "medium" | "high" | "critical";
   availableMemory: number;
   fragmentationLevel: number;
   gcPressure: number;
@@ -103,7 +103,7 @@ export interface PerformanceMetrics {
   executionTime: number;
   memoryPeak: number;
   budgetCompliance: boolean;
-  optimizationLevel: 'none' | 'basic' | 'standard' | 'advanced' | 'maximum';
+  optimizationLevel: "none" | "basic" | "standard" | "advanced" | "maximum";
   yieldCount: number;
   cacheHitRate: number;
   throttlingActive: boolean;
@@ -123,18 +123,18 @@ export interface PolyfillConfiguration {
     maxDataSize: number;
     requiredAPIs: string[];
     optionalAPIs: string[];
-    securityLevel: 'strict' | 'moderate' | 'relaxed';
+    securityLevel: "strict" | "moderate" | "relaxed";
   };
   fallbacks: PolyfillFallbackConfig[];
   lifecycle: {
     loadCondition: () => boolean;
-    activationTrigger: 'immediate' | 'lazy' | 'demand' | 'conditional';
+    activationTrigger: "immediate" | "lazy" | "demand" | "conditional";
     degradationThreshold: number;
     retryPolicy: RetryPolicy;
   };
   diagnostics: {
     enableTracking: boolean;
-    logLevel: 'debug' | 'info' | 'warn' | 'error';
+    logLevel: "debug" | "info" | "warn" | "error";
     collectMetrics: boolean;
   };
 }
@@ -144,7 +144,7 @@ export interface PolyfillConfiguration {
  */
 export interface RetryPolicy {
   maxAttempts: number;
-  backoffStrategy: 'linear' | 'exponential' | 'fixed';
+  backoffStrategy: "linear" | "exponential" | "fixed";
   initialDelay: number;
   maxDelay: number;
   jitter: boolean;
@@ -171,7 +171,7 @@ export interface ErrorBoundaryConfig {
   catchAll: boolean;
   logErrors: boolean;
   notifyUser: boolean;
-  fallbackStrategy: 'graceful' | 'fail-fast' | 'retry' | 'degrade';
+  fallbackStrategy: "graceful" | "fail-fast" | "retry" | "degrade";
   maxRecoveryAttempts: number;
   recoveryTimeout: number;
 }
@@ -180,7 +180,7 @@ export interface ErrorBoundaryConfig {
  * System health status with detailed metrics
  */
 export interface SystemHealthStatus {
-  overall: 'excellent' | 'good' | 'warning' | 'critical' | 'failure';
+  overall: "excellent" | "good" | "warning" | "critical" | "failure";
   memory: MemoryMetrics;
   performance: PerformanceMetrics;
   polyfills: Map<string, PolyfillHealthStatus>;
@@ -195,7 +195,14 @@ export interface SystemHealthStatus {
  */
 export interface PolyfillHealthStatus {
   name: string;
-  state: 'unloaded' | 'loading' | 'active' | 'optimizing' | 'degraded' | 'failed' | 'disabled';
+  state:
+    | "unloaded"
+    | "loading"
+    | "active"
+    | "optimizing"
+    | "degraded"
+    | "failed"
+    | "disabled";
   metrics: PolyfillRuntimeMetrics;
   errors: PolyfillErrorInfo[];
   warnings: PolyfillWarning[];
@@ -238,7 +245,7 @@ export interface OperationMetrics {
 export interface PolyfillErrorInfo {
   code: string;
   message: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  severity: "low" | "medium" | "high" | "critical";
   timestamp: number;
   context: PolyfillOperationContext;
   stackTrace?: string;
@@ -259,7 +266,7 @@ export interface PolyfillWarning {
   timestamp: number;
   context: PolyfillOperationContext;
   dismissed: boolean;
-  severity: 'info' | 'warning';
+  severity: "info" | "warning";
 }
 
 /**
@@ -267,13 +274,13 @@ export interface PolyfillWarning {
  */
 export interface HealthRecommendation {
   id: string;
-  type: 'performance' | 'memory' | 'configuration' | 'security';
-  priority: 'low' | 'medium' | 'high' | 'critical';
+  type: "performance" | "memory" | "configuration" | "security";
+  priority: "low" | "medium" | "high" | "critical";
   title: string;
   description: string;
   actionSteps: string[];
-  estimatedImpact: 'low' | 'medium' | 'high';
-  implementationCost: 'low' | 'medium' | 'high';
+  estimatedImpact: "low" | "medium" | "high";
+  implementationCost: "low" | "medium" | "high";
 }
 
 /**
@@ -281,8 +288,8 @@ export interface HealthRecommendation {
  */
 export interface SystemAlert {
   id: string;
-  type: 'error' | 'warning' | 'info';
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  type: "error" | "warning" | "info";
+  severity: "low" | "medium" | "high" | "critical";
   message: string;
   timestamp: number;
   acknowledged: boolean;
@@ -295,59 +302,73 @@ export interface SystemAlert {
  */
 export class PolyfillTypeGuards {
   static isPolyfillOperation(obj: any): obj is PolyfillOperation {
-    return obj &&
-      typeof obj.api === 'string' &&
-      typeof obj.method === 'string' &&
-      typeof obj.dataSize === 'number' &&
-      typeof obj.estimatedDuration === 'number' &&
-      ['low', 'medium', 'high', 'critical'].includes(obj.priority) &&
-      this.isPolyfillOperationContext(obj.context);
+    return (
+      obj &&
+      typeof obj.api === "string" &&
+      typeof obj.method === "string" &&
+      typeof obj.dataSize === "number" &&
+      typeof obj.estimatedDuration === "number" &&
+      ["low", "medium", "high", "critical"].includes(obj.priority) &&
+      this.isPolyfillOperationContext(obj.context)
+    );
   }
 
   static isPolyfillOperationContext(obj: any): obj is PolyfillOperationContext {
-    return obj &&
-      typeof obj.api === 'string' &&
-      typeof obj.operation === 'string' &&
-      typeof obj.dataSize === 'number' &&
-      typeof obj.timestamp === 'number' &&
-      typeof obj.userAgent === 'string' &&
-      typeof obj.attemptCount === 'number' &&
-      typeof obj.sessionId === 'string';
+    return (
+      obj &&
+      typeof obj.api === "string" &&
+      typeof obj.operation === "string" &&
+      typeof obj.dataSize === "number" &&
+      typeof obj.timestamp === "number" &&
+      typeof obj.userAgent === "string" &&
+      typeof obj.attemptCount === "number" &&
+      typeof obj.sessionId === "string"
+    );
   }
 
   static isConstraintViolation(obj: any): obj is ConstraintViolation {
-    return obj &&
-      ['memory', 'performance', 'api', 'security', 'size', 'timeout'].includes(obj.type) &&
-      ['low', 'medium', 'high', 'critical'].includes(obj.severity) &&
-      typeof obj.polyfill === 'string' &&
+    return (
+      obj &&
+      ["memory", "performance", "api", "security", "size", "timeout"].includes(
+        obj.type,
+      ) &&
+      ["low", "medium", "high", "critical"].includes(obj.severity) &&
+      typeof obj.polyfill === "string" &&
       obj.details &&
-      typeof obj.details.message === 'string' &&
-      typeof obj.suggestedAction === 'string' &&
+      typeof obj.details.message === "string" &&
+      typeof obj.suggestedAction === "string" &&
       Array.isArray(obj.remediationSteps) &&
-      typeof obj.errorCode === 'string';
+      typeof obj.errorCode === "string"
+    );
   }
 
   static isMemoryMetrics(obj: any): obj is MemoryMetrics {
-    return obj &&
-      typeof obj.currentUsage === 'number' &&
-      typeof obj.peakUsage === 'number' &&
-      ['low', 'medium', 'high', 'critical'].includes(obj.pressure) &&
-      typeof obj.availableMemory === 'number' &&
-      typeof obj.fragmentationLevel === 'number' &&
-      typeof obj.gcPressure === 'number' &&
-      obj.poolUtilization instanceof Map;
+    return (
+      obj &&
+      typeof obj.currentUsage === "number" &&
+      typeof obj.peakUsage === "number" &&
+      ["low", "medium", "high", "critical"].includes(obj.pressure) &&
+      typeof obj.availableMemory === "number" &&
+      typeof obj.fragmentationLevel === "number" &&
+      typeof obj.gcPressure === "number" &&
+      obj.poolUtilization instanceof Map
+    );
   }
 
   static isPerformanceMetrics(obj: any): obj is PerformanceMetrics {
-    return obj &&
-      typeof obj.executionTime === 'number' &&
-      typeof obj.memoryPeak === 'number' &&
-      typeof obj.budgetCompliance === 'boolean' &&
-      ['none', 'basic', 'standard', 'advanced', 'maximum'].includes(obj.optimizationLevel) &&
-      typeof obj.yieldCount === 'number' &&
-      typeof obj.cacheHitRate === 'number' &&
-      typeof obj.throttlingActive === 'boolean' &&
-      typeof obj.deferredOperations === 'number';
+    return (
+      obj &&
+      typeof obj.executionTime === "number" &&
+      typeof obj.memoryPeak === "number" &&
+      typeof obj.budgetCompliance === "boolean" &&
+      ["none", "basic", "standard", "advanced", "maximum"].includes(
+        obj.optimizationLevel,
+      ) &&
+      typeof obj.yieldCount === "number" &&
+      typeof obj.cacheHitRate === "number" &&
+      typeof obj.throttlingActive === "boolean" &&
+      typeof obj.deferredOperations === "number"
+    );
   }
 }
 
@@ -359,7 +380,7 @@ export class PolyfillError extends Error {
   public readonly api: string;
   public readonly operation: string;
   public readonly context: PolyfillOperationContext;
-  public readonly severity: 'low' | 'medium' | 'high' | 'critical';
+  public readonly severity: "low" | "medium" | "high" | "critical";
   public readonly remediationSteps: string[];
   public readonly fallbackOptions: string[];
 
@@ -369,12 +390,12 @@ export class PolyfillError extends Error {
     api: string,
     operation: string,
     context: PolyfillOperationContext,
-    severity: 'low' | 'medium' | 'high' | 'critical' = 'medium',
+    severity: "low" | "medium" | "high" | "critical" = "medium",
     remediationSteps: string[] = [],
-    fallbackOptions: string[] = []
+    fallbackOptions: string[] = [],
   ) {
     super(message);
-    this.name = 'PolyfillError';
+    this.name = "PolyfillError";
     this.code = code;
     this.api = api;
     this.operation = operation;
@@ -391,18 +412,21 @@ export class PolyfillError extends Error {
 export class ConstraintViolationError extends PolyfillError {
   public readonly violation: ConstraintViolation;
 
-  constructor(violation: ConstraintViolation, context: PolyfillOperationContext) {
+  constructor(
+    violation: ConstraintViolation,
+    context: PolyfillOperationContext,
+  ) {
     super(
       violation.errorCode,
       violation.details.message,
       violation.polyfill,
-      violation.operation || 'unknown',
+      violation.operation || "unknown",
       context,
       violation.severity,
       violation.remediationSteps,
-      []
+      [],
     );
-    this.name = 'ConstraintViolationError';
+    this.name = "ConstraintViolationError";
     this.violation = violation;
   }
 }
@@ -419,24 +443,24 @@ export class MemoryExhaustionError extends PolyfillError {
     availableMemory: number,
     api: string,
     operation: string,
-    context: PolyfillOperationContext
+    context: PolyfillOperationContext,
   ) {
     super(
-      'MEM_EXHAUSTED',
+      "MEM_EXHAUSTED",
       `Memory exhaustion: requested ${requestedMemory} bytes, only ${availableMemory} available`,
       api,
       operation,
       context,
-      'critical',
+      "critical",
       [
-        'Reduce data size for this operation',
-        'Wait for memory to be freed by other operations',
-        'Use a streaming or chunked approach',
-        'Enable memory compression if available'
+        "Reduce data size for this operation",
+        "Wait for memory to be freed by other operations",
+        "Use a streaming or chunked approach",
+        "Enable memory compression if available",
       ],
-      ['minimal-implementation', 'deferred-processing', 'chunked-processing']
+      ["minimal-implementation", "deferred-processing", "chunked-processing"],
     );
-    this.name = 'MemoryExhaustionError';
+    this.name = "MemoryExhaustionError";
     this.requestedMemory = requestedMemory;
     this.availableMemory = availableMemory;
   }
@@ -454,24 +478,24 @@ export class PerformanceTimeoutError extends PolyfillError {
     timeoutLimit: number,
     api: string,
     operation: string,
-    context: PolyfillOperationContext
+    context: PolyfillOperationContext,
   ) {
     super(
-      'PERF_TIMEOUT',
+      "PERF_TIMEOUT",
       `Performance timeout: operation took ${executionTime}ms, limit is ${timeoutLimit}ms`,
       api,
       operation,
       context,
-      'high',
+      "high",
       [
-        'Reduce data size for this operation',
-        'Use asynchronous processing with yields',
-        'Enable performance optimization features',
-        'Consider using a faster fallback implementation'
+        "Reduce data size for this operation",
+        "Use asynchronous processing with yields",
+        "Enable performance optimization features",
+        "Consider using a faster fallback implementation",
       ],
-      ['async-processing', 'chunked-processing', 'fast-fallback']
+      ["async-processing", "chunked-processing", "fast-fallback"],
     );
-    this.name = 'PerformanceTimeoutError';
+    this.name = "PerformanceTimeoutError";
     this.executionTime = executionTime;
     this.timeoutLimit = timeoutLimit;
   }
@@ -497,5 +521,5 @@ export type {
   OperationMetrics,
   HealthRecommendation,
   SystemAlert,
-  PolyfillWarning
+  PolyfillWarning,
 };

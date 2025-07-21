@@ -1,19 +1,19 @@
-import { JSDOM } from 'jsdom';
-import 'global-jsdom/register';
-import sinon from 'sinon';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import { JSDOM } from "jsdom";
+import "global-jsdom/register";
+import sinon from "sinon";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
 // Add __dirname polyfill for ESM compatibility
-if (typeof globalThis.__dirname === 'undefined') {
+if (typeof globalThis.__dirname === "undefined") {
   globalThis.__dirname = dirname(fileURLToPath(import.meta.url));
 }
 
 // Set up DOM environment for Figma plugin simulation
-const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
-  url: 'https://www.figma.com',
+const dom = new JSDOM("<!DOCTYPE html><html><body></body></html>", {
+  url: "https://www.figma.com",
   pretendToBeVisual: true,
-  resources: 'usable',
+  resources: "usable",
 });
 
 // Mock Figma's global API using Sinon
@@ -32,14 +32,14 @@ export const createMockNode = () => {
 
   return {
     setPluginData: sinon.fake((key: string, value: string) => {
-      if (value === '') {
+      if (value === "") {
         pluginData.delete(key);
       } else {
         pluginData.set(key, value);
       }
     }),
     getPluginData: sinon.fake((key: string) => {
-      return pluginData.get(key) || '';
+      return pluginData.get(key) || "";
     }),
     getPluginDataKeys: sinon.fake(() => {
       return Array.from(pluginData.keys());

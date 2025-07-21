@@ -8,8 +8,8 @@ export interface FigmaPerformanceOptimizer {
 
 export interface PolyfillOperation {
   name: string;
-  type: 'sync' | 'async';
-  priority: 'high' | 'medium' | 'low';
+  type: "sync" | "async";
+  priority: "high" | "medium" | "low";
   estimatedTime?: number;
   memoryImpact?: number;
 }

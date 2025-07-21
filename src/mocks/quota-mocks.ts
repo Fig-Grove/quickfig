@@ -2,7 +2,7 @@
  * Quota Testing Helpers - Mock utilities for quota management testing
  */
 
-import type { BaseNode } from '../../src/core/plugin-data.js';
+import type { BaseNode } from "../../src/core/plugin-data.js";
 
 // Global state for tracking all mock nodes
 const globalMockState = new Set<MockNode>();
@@ -15,7 +15,7 @@ export interface MockNode extends BaseNode {
 /**
  * Create a mock Figma node for testing quota operations
  */
-export function createMockNode(nodeId: string = 'mock-node'): MockNode {
+export function createMockNode(nodeId: string = "mock-node"): MockNode {
   const mockData = new Map<string, string>();
 
   const node: MockNode = {
@@ -23,7 +23,7 @@ export function createMockNode(nodeId: string = 'mock-node'): MockNode {
     _nodeId: nodeId,
 
     setPluginData(key: string, value: string): void {
-      if (value === '') {
+      if (value === "") {
         mockData.delete(key);
       } else {
         mockData.set(key, value);
@@ -31,7 +31,7 @@ export function createMockNode(nodeId: string = 'mock-node'): MockNode {
     },
 
     getPluginData(key: string): string {
-      return mockData.get(key) || '';
+      return mockData.get(key) || "";
     },
 
     getPluginDataKeys(): string[] {
@@ -61,21 +61,21 @@ export function createLargeNodeSet(count: number): MockNode[] {
     const node = createMockNode(`node-${i}`);
 
     // Add varied data sizes to each node
-    const smallData = 'x'.repeat(1024); // 1KB
-    const mediumData = 'y'.repeat(50 * 1024); // 50KB
+    const smallData = "x".repeat(1024); // 1KB
+    const mediumData = "y".repeat(50 * 1024); // 50KB
     const largeData = JSON.stringify({
       id: i,
-      data: 'z'.repeat(10 * 1024), // 10KB of data
-      metadata: { created: Date.now(), version: '1.0' },
+      data: "z".repeat(10 * 1024), // 10KB of data
+      metadata: { created: Date.now(), version: "1.0" },
     });
 
-    node.setPluginData('small', smallData);
-    node.setPluginData('medium', mediumData);
-    node.setPluginData('large', largeData);
+    node.setPluginData("small", smallData);
+    node.setPluginData("medium", mediumData);
+    node.setPluginData("large", largeData);
 
     // Add some QuickFig internal keys to simulate chunked/compressed data
-    node.setPluginData('__fj_chunk_0_test', 'chunk data');
-    node.setPluginData('__fj_meta_test', '{"chunks":2,"size":12345}');
+    node.setPluginData("__fj_chunk_0_test", "chunk data");
+    node.setPluginData("__fj_meta_test", '{"chunks":2,"size":12345}');
 
     nodes.push(node);
   }
@@ -88,7 +88,7 @@ export function createLargeNodeSet(count: number): MockNode[] {
  */
 export function createMockNodeWithUsage(
   nodeId: string,
-  targetSizeBytes: number
+  targetSizeBytes: number,
 ): MockNode {
   const node = createMockNode(nodeId);
 
@@ -103,10 +103,10 @@ export function createMockNodeWithUsage(
 
     if (chunkSize <= 0) break;
 
-    const value = 'x'.repeat(chunkSize);
+    const value = "x".repeat(chunkSize);
     node.setPluginData(key, value);
 
-    currentSize += Buffer.byteLength(key + value, 'utf8');
+    currentSize += Buffer.byteLength(key + value, "utf8");
     counter++;
   }
 
@@ -123,7 +123,7 @@ export function calculateMockNodeSetUsage(nodes: MockNode[]): number {
     const keys = node.getPluginDataKeys();
     for (const key of keys) {
       const value = node.getPluginData(key);
-      totalSize += Buffer.byteLength(key + value, 'utf8');
+      totalSize += Buffer.byteLength(key + value, "utf8");
     }
   }
 
@@ -139,7 +139,7 @@ export function resetMockNodes(nodes?: MockNode[]): void {
     for (const node of globalMockState) {
       const keys = Array.from(node._mockData.keys());
       for (const key of keys) {
-        node.setPluginData(key, '');
+        node.setPluginData(key, "");
       }
     }
     return;
@@ -148,7 +148,7 @@ export function resetMockNodes(nodes?: MockNode[]): void {
   for (const node of nodes) {
     const keys = Array.from(node._mockData.keys());
     for (const key of keys) {
-      node.setPluginData(key, '');
+      node.setPluginData(key, "");
     }
   }
 }
@@ -157,19 +157,19 @@ export function resetMockNodes(nodes?: MockNode[]): void {
  * Mock quota usage scenarios for testing
  */
 export const QUOTA_TEST_SCENARIOS = {
-  EMPTY: { totalUsed: 0, description: 'Empty storage' },
-  LOW_USAGE: { totalUsed: 1024 * 1024, description: '1MB used (20%)' }, // 1MB
+  EMPTY: { totalUsed: 0, description: "Empty storage" },
+  LOW_USAGE: { totalUsed: 1024 * 1024, description: "1MB used (20%)" }, // 1MB
   MEDIUM_USAGE: {
     totalUsed: 2.5 * 1024 * 1024,
-    description: '2.5MB used (50%)',
+    description: "2.5MB used (50%)",
   }, // 2.5MB
-  HIGH_USAGE: { totalUsed: 4 * 1024 * 1024, description: '4MB used (80%)' }, // 4MB
+  HIGH_USAGE: { totalUsed: 4 * 1024 * 1024, description: "4MB used (80%)" }, // 4MB
   CRITICAL_USAGE: {
     totalUsed: 4.8 * 1024 * 1024,
-    description: '4.8MB used (96%)',
+    description: "4.8MB used (96%)",
   }, // 4.8MB
   NEAR_FULL: {
     totalUsed: 5 * 1024 * 1024 - 1024,
-    description: '5MB-1KB used (99.98%)',
+    description: "5MB-1KB used (99.98%)",
   }, // Almost full
 } as const;
